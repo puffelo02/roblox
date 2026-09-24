@@ -215,10 +215,18 @@ class Bot:
         return 0
 
     def walk_step_blocked(self, sec):
-        """Walk forward for sec seconds; True if the view barely changed (blocked)."""
-        before = self.v.scene_small(self.v.grab())
-        self.c.hold("w", sec)
-        return self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF
+        """Walk forward for sec seconds; True if the view barely changed (blocked).
+        W goes down first and the "before" picture is taken a moment later, so the
+        character turning to face forward doesn't count as moving."""
+        self.c.down("w")
+        try:
+            self.c.sleep(C.TURN_SETTLE_SEC)
+            before = self.v.scene_small(self.v.grab())
+            self.c.sleep(sec)
+            after = self.v.scene_small(self.v.grab())
+        finally:
+            self.c.up("w")
+        return self.v.scene_diff(before, after) < C.BLOCKED_DIFF
 
     def climb(self):
         """Walk forward, jumping whenever a step blocks us. We're on top once we can

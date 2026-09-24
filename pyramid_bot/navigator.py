@@ -124,21 +124,23 @@ class Navigator:
         while slid < C.WALL_MAX_SEC:
             self.c.hold(key, C.WALL_CHECK_SEC)
             slid += C.WALL_CHECK_SEC
+            t0 = time.time()
             if self.b.walk_step_blocked(C.WALL_PROBE_SEC):
                 continue
             # W moved us: past the corner, or we had drifted away from the wall
             if self.b.walk_step_blocked(0.3):
                 continue  # back against the wall: it was drift
             log.info("wall ended: corner found, stepping back to its edge")
-            self.c.hold("s", C.WALL_PROBE_SEC + 0.3)
+            self.c.hold("s", time.time() - t0)  # undo exactly the forward probing
             # creep back toward the wall until it's in front of us again
             back = 0.0
             for _ in range(int(C.WALL_CHECK_SEC * 2 / C.WALL_CREEP_SEC) + 2):
                 self.c.hold(other, C.WALL_CREEP_SEC)
                 back += C.WALL_CREEP_SEC
+                t0 = time.time()
                 if self.b.walk_step_blocked(C.WALL_PROBE_SEC):
                     break
-                self.c.hold("s", C.WALL_PROBE_SEC)  # undo the probe
+                self.c.hold("s", time.time() - t0)  # undo the probe
             else:
                 # never touched the wall again: go back to about where it ended
                 log.warning("couldn't find the corner's exact edge, estimating")

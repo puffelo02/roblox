@@ -40,11 +40,13 @@ STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.08    # sign within +-8% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
 PLOT_ENTER_SEC = 1.0      # walk forward this long after reaching the PYRAMID sign
+TURN_SETTLE_SEC = 0.1     # let the character turn to face forward before comparing
 BLOCKED_DIFF = 1.0        # view changes less than this after walking = blocked by a wall
 
 # --- Placement: follow the green placement cube, E held the whole time ---
 PLACE_HOLD_SEC = 0.6      # hold E this long when testing if placing works
 CHAR_POS = (960, 550)     # where your character stands on screen
+CHAR_BOX = (90, 110)      # half width/height around it to ignore when comparing frames
 INDICATOR_HSV = ((36, 60, 90), (60, 255, 255))   # the green cube's color
 INDICATOR_SEARCH = (480, 470, 1440, 1000)         # only look around the character
 INDICATOR_MIN_AREA = 40

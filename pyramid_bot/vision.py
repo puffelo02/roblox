@@ -99,8 +99,14 @@ class Vision:
         return red.mean() / 255 > 0.12 and white.mean() / 255 > 0.05
 
     def scene_small(self, img):
-        """Tiny grayscale version of the 3D view (HUD cut out) to compare frames."""
+        """Tiny grayscale version of the 3D view (HUD cut out) to compare frames.
+        The character is blanked out: it turning around (e.g. from facing right
+        to facing the wall) must not look like the world moving."""
         g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        cx, cy = C.CHAR_POS
+        bw, bh = C.CHAR_BOX
+        g[int((cy - bh) * self.sy):int((cy + bh) * self.sy),
+          int((cx - bw) * self.sx):int((cx + bw) * self.sx)] = 0
         h, w = g.shape
         g = g[int(h * 0.15):int(h * 0.9), int(w * 0.22):int(w * 0.88)]
         return cv2.resize(g, (96, 54), interpolation=cv2.INTER_AREA).astype(np.float32)
