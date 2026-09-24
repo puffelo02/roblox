@@ -123,6 +123,7 @@ class Bot:
         start = time.time()
         best = -1
         last_rise = time.time()
+        last_log = 0
         shuffle = 0
         self.c.down("e")
         try:
@@ -135,10 +136,23 @@ class Bot:
                     last_rise = time.time()
                     continue
                 cap = self.capacity(img)
+                near_full = self.cap_max and best >= self.cap_max * C.NEAR_FULL_RATIO
                 if not cap:
+                    # text may change look when full: if we were close and it's unreadable, go
+                    if near_full and time.time() - last_rise > C.FULL_FALLBACK_SEC:
+                        log.info("capacity unreadable after reaching %s, treating as full", best)
+                        self.v.save(img, "full_unreadable")
+                        return True
                     continue
+                if time.time() - last_log > 3:
+                    log.info("capacity %s/%s", *cap)
+                    last_log = time.time()
                 if cap[0] >= cap[1] * C.CAPACITY_FULL_RATIO:
                     log.info("capacity full %s/%s", *cap)
+                    return True
+                if near_full and cap[0] <= best and time.time() - last_rise > C.FULL_FALLBACK_SEC:
+                    log.info("capacity stopped at %s/%s, treating as full", *cap)
+                    self.v.save(img, "full_stalled")
                     return True
                 if cap[0] > best:
                     best = cap[0]
@@ -192,8 +206,12 @@ class Bot:
         return False
 
     def empty(self):
+        """Out of blocks: capacity reads (almost) 0, i.e. less than one placement."""
         cap = self.capacity()
-        return cap is not None and cap[0] <= 0
+        if cap is not None and cap[0] < C.EMPTY_BELOW:
+            log.info("capacity empty (%s/%s), back to BLOCKS", *cap)
+            return True
+        return False
 
     def build(self):
         """Walk a clockwise spiral holding E at each spot until capacity is empty."""

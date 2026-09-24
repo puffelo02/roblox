@@ -8,7 +8,7 @@ TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # --- Screen regions (x1, y1, x2, y2) at 1920x1080 ---
 REGION_COUNTER = (660, 5, 1350, 85)       # "909 / 171,700"
-REGION_CAPACITY = (60, 590, 420, 645)     # "Capacity: 1681/42705"
+REGION_CAPACITY = (60, 596, 420, 645)     # "Capacity: 1681/42705"
 REGION_PROMPT = (760, 760, 1150, 890)     # "E  Block  Pick Up" box
 REGION_MENU_X = (1440, 190, 1530, 265)    # red X of the Upgrades menu
 MENU_X_CLICK = (1482, 228)                # where to click to close it
@@ -51,6 +51,9 @@ PICKUP_STALL_SEC = 12      # capacity not rising this long = step to a fresh spo
 PICKUP_TIMEOUT_SEC = 300   # absolute safety limit
 TRAVEL_TIMEOUT_SEC = 40
 CAPACITY_FULL_RATIO = 0.995
+NEAR_FULL_RATIO = 0.95     # backup rule: above 95% and no longer rising...
+FULL_FALLBACK_SEC = 4      # ...for this long = treat as full
+EMPTY_BELOW = 10           # fewer blocks than this left = go refill
 JUMP_HOLD_SEC = 0.15       # Roblox misses very short taps, so hold Space a bit
 MAX_CLIMB_JUMPS = 40
 

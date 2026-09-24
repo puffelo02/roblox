@@ -44,10 +44,31 @@ class Vision:
         mask = cv2.copyMakeBorder(mask, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=0)
         return 255 - mask  # black text on white for tesseract
 
+    @staticmethod
+    def _bright_text(img):
+        """Fallback for colored text (e.g. capacity turning red/yellow when full):
+        keep bright pixels of any color that sit next to the black outline and
+        don't look like the background (the most common color in the box)."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        dark = cv2.inRange(hsv, (0, 0, 0), (179, 255, 60))
+        near_outline = cv2.dilate(dark, np.ones((5, 5), np.uint8))
+        bright = cv2.inRange(hsv, (0, 0, 130), (179, 255, 255))
+        bg = np.median(img[bright > 0].reshape(-1, 3), axis=0) if bright.any() else np.zeros(3)
+        not_bg = (np.linalg.norm(img.astype(np.float32) - bg, axis=2) > 60).astype(np.uint8) * 255
+        mask = bright & near_outline & not_bg
+        mask = cv2.resize(mask, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+        mask = cv2.copyMakeBorder(mask, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=0)
+        return 255 - mask
+
     def _read_pair(self, img, region):
         """Reads 'a / b' and returns (a, b) or None."""
-        prepared = self._white_text(self.crop(img, region))
-        for cfg in ("--psm 7", "--psm 7 -c tessedit_char_whitelist=0123456789/,"):
+        crop = self.crop(img, region)
+        attempts = [
+            (prep, cfg)
+            for prep in (self._white_text(crop), self._bright_text(crop))
+            for cfg in ("--psm 7", "--psm 7 -c tessedit_char_whitelist=0123456789/,")
+        ]
+        for prepared, cfg in attempts:
             text = pytesseract.image_to_string(prepared, config=cfg).replace(" ", "")
             m = re.search(r"([\d,.]+)/([\d,.]+)", text)
             if m:
