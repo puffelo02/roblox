@@ -27,6 +27,7 @@ class Navigator:
         self.x = self.y = 0.0
         self.heading = 0  # 0 = +y (into the pyramid), 90 = +x (right), 180, 270
         self.base = None
+        self.speed_factor = 1.0
 
     # ---------- calibration ----------
     @staticmethod
@@ -150,7 +151,10 @@ class Navigator:
             unseen = 0
             end = span[1] if key == "d" else span[0]
             visible = C.CORNER_VISIBLE[0] < end < C.CORNER_VISIBLE[1]
-            reached = visible and (end <= target if key == "d" else end >= target)
+            # at or past the character counts (a slide can skip over the exact spot);
+            # only an end hidden on the far side is unknown
+            reached = end <= target and end < C.CORNER_VISIBLE[1] if key == "d" \
+                else end >= target and end > C.CORNER_VISIBLE[0]
             if not visible and last_end is not None and abs(last_end - target) < 400:
                 log.info("steps' end slipped past the character: taking that as the corner")
                 reached = True
@@ -163,7 +167,7 @@ class Navigator:
                 return slid
             # far away: bigger slides; close: small ones so we don't overshoot
             dist_px = abs(end - target) if visible else 800
-            sec = C.CORNER_SLIDE_SEC if dist_px > 250 else C.CORNER_SLIDE_SEC / 3
+            sec = (C.CORNER_SLIDE_SEC if dist_px > 250 else C.CORNER_SLIDE_SEC / 3) * self.speed_factor
             self.c.hold(key, sec)
             slid += sec
         log.warning("no corner found along the wall")
@@ -241,10 +245,28 @@ class Navigator:
         self.jumps = jumps
         return since_wall
 
+    def check_walkspeed(self):
+        """Time per block depends on Walk Speed: rescale if it changed."""
+        ws = None
+        for _ in range(3):
+            ws = self.v.read_walkspeed(self.v.grab())
+            if ws:
+                break
+        if not ws:
+            return
+        old = self.cal.get("walkspeed")
+        if self.spb and old and old != ws:
+            self.cal["sec_per_block"] = round(self.spb * old / ws, 5)
+            log.info("walk speed changed %s -> %s: time per block now %.4fs", old, ws, self.spb)
+        self.cal["walkspeed"] = ws
+        self.speed_factor = 30 / ws  # slide steps scaled to speed (tuned at 30)
+        self._save_cal()
+
     def anchor(self, completed):
         """From the base wall: square up, find the right corner, climb at a known
         spot. Sets self.x / self.y / self.heading."""
         log.info("anchoring at a corner")
+        self.check_walkspeed()
         self.align()
         if "turn90" not in self.cal:
             self.calibrate_turn()

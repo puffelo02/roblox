@@ -10,6 +10,7 @@ TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 REGION_COUNTER = (660, 5, 1350, 85)       # "909 / 171,700"
 REGION_CAPACITY = (60, 596, 420, 645)     # "Capacity: 1681/42705"
 REGION_PROMPT = (760, 760, 1150, 890)     # "E  Block  Pick Up" box
+REGION_WALKSPEED = (95, 505, 345, 535)    # "Walk Speed: 30/5501"
 REGION_MENU_X = (1440, 190, 1530, 265)    # red X of the Upgrades menu
 MENU_X_CLICK = (1482, 228)                # where to click to close it
 # Areas covered by the HUD, ignored when looking for the signs

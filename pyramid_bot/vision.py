@@ -85,6 +85,10 @@ class Vision:
     def read_capacity(self, img):
         return self._read_pair(img, C.REGION_CAPACITY)
 
+    def read_walkspeed(self, img):
+        pair = self._read_pair(img, C.REGION_WALKSPEED)
+        return pair[0] if pair and 0 < pair[0] <= pair[1] else None
+
     def pickup_prompt_visible(self, img):
         crop = self.crop(img, C.REGION_PROMPT)
         text = pytesseract.image_to_string(crop, config="--psm 6").lower()
