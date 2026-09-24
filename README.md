@@ -11,7 +11,8 @@ pyramid and places them in a shrinking spiral, one layer at a time.
    (default path `C:\Program Files\Tesseract-OCR\tesseract.exe`, change `TESSERACT_CMD` in `config.py` if different).
 2. `pip install -r requirements.txt`
 3. Roblox **fullscreen**, 1920x1080 recommended (other sizes are scaled).
-4. In game, **lower your Walk Speed** (pencil icon) to ~100-200 so key taps are controllable.
+4. In game, set your **Walk Speed to 30** (pencil icon). The bot tracks its position by walking time.
+5. Roblox settings: **Camera Mode = Classic** (so the camera doesn't swing around when strafing).
 
 ## Check first
 
@@ -37,11 +38,16 @@ You have 5 seconds to click into Roblox. **F7** pauses or resumes, **F8** stops.
 
 1. Steers with the arrow keys toward the red **BLOCKS** sign until the "E Block Pick Up" prompt shows.
 2. Holds E until Capacity is full.
-3. Steers toward the green **PYRAMID** sign, walks onto the plot, and jumps up until placing works.
-4. Walks a clockwise spiral, holding E at each spot. The block counter tells it whether a spot
-   still takes blocks. It skips quickly over full stretches, and if a whole ring does nothing
-   it assumes it fell off and climbs back up.
-5. Repeats until the counter reaches the target.
+3. Steers toward the green **PYRAMID** sign until it bumps into the base wall.
+4. **Anchors**: squares the camera to the wall (step edges horizontal), slides right until the
+   wall ends (= corner), steps back in and climbs straight up. Now it knows where it is.
+5. **Spiral**: from the block counter it knows which layer is being built and how big it is
+   (171,700 = 100² + 98² + … + 2²). It walks corner to corner, tighter toward the middle;
+   the next layer goes from the middle back out to the corners.
+6. When empty (or lost), it goes back to BLOCKS and re-anchors on the next trip.
+
+The first run measures camera turn speed and walk speed (one full side of the base) and saves
+them in `calibration.json`. After changing Walk Speed, run `python run.py --recalibrate`.
 
 ## Tuning / sending feedback
 

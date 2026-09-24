@@ -10,7 +10,9 @@ import logging
 import time
 
 from . import config as C
+from . import geometry as G
 from .controls import Controls, Stopped
+from .navigator import Navigator
 from .vision import Vision
 
 log = logging.getLogger("bot")
@@ -24,6 +26,7 @@ class Bot:
         self.cap_max = None
         self.cap_candidate = None
         self.cap_votes = 0
+        self.nav = Navigator(self)
 
     # ---------- helpers ----------
     def counter(self, img=None):
@@ -251,7 +254,22 @@ class Bot:
             return True
         return False
 
-    def build(self):
+    def build_pyramid(self):
+        """Corner anchor + square spiral when the pyramid size is known,
+        otherwise fall back to following the cube."""
+        cur = self.counter()
+        base = G.base_size(cur[1]) if cur else None
+        if base is None:
+            log.info("pyramid size unknown (%s), following the cube instead", cur)
+            self.build()
+            return
+        status = self.nav.run(base)
+        log.info("building stopped: %s", status)
+        if status == "failed":
+            log.info("couldn't anchor, following the cube this trip")
+            self.build()
+
+    def build(self, max_sec=None, climb_first=True):
         """Keep walking (W + E held) and steer with the camera, never stopping.
 
         cube visible -> turn the camera toward it while walking over it
@@ -259,8 +277,10 @@ class Bot:
         fell off     -> nothing placed and no cube for a while: the pyramid is behind
                         us, so turn around and climb back up
         """
-        log.info("building")
-        self.climb()
+        log.info("following the cube")
+        if climb_first:
+            self.climb()
+        started = time.time()
         last_n = self.counter()[0] if self.counter() else None
         last_rise = last_ind = time.time()
         next_counter = next_cap = time.time()
@@ -271,7 +291,7 @@ class Bot:
         self.c.down("e")
         self.c.down("w")
         try:
-            while True:
+            while max_sec is None or time.time() - started < max_sec:
                 self.c.sleep(C.BUILD_TICK_SEC)
                 now = time.time()
                 img = self.v.grab()
@@ -370,7 +390,7 @@ class Bot:
                     continue
                 if not self.go_to_pyramid():
                     continue
-                self.build()
+                self.build_pyramid()
         except Stopped:
             log.info("stopped by user")
         finally:

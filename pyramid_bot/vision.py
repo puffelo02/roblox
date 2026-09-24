@@ -134,6 +134,41 @@ class Vision:
                 best = (dx, dy, d)
         return None if best is None else (best[0], best[1])
 
+    def edge_angle(self, img):
+        """Angle (degrees) of the long step edges in front of the character.
+        0 = edges perfectly horizontal = camera square to the pyramid side.
+        Positive = right end lower on screen. None if no clear edges."""
+        import math
+        x1, y1, x2, y2 = self._scale(C.EDGE_REGION)
+        g = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY)
+        g = cv2.GaussianBlur(g, (5, 5), 0)
+        edges = cv2.Canny(g, 30, 90)
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 360, 80,
+                                minLineLength=int(150 * self.sx), maxLineGap=10)
+        if lines is None:
+            return None
+        found = []
+        for l in lines.reshape(-1, 4):
+            ax, ay, bx, by = (int(v) for v in l)
+            a = math.degrees(math.atan2(by - ay, bx - ax))
+            a = (a + 90) % 180 - 90
+            if abs(a) < C.EDGE_MAX_DEG:
+                found.append((a, math.hypot(bx - ax, by - ay)))
+        total = sum(w for _, w in found)
+        if total < C.EDGE_MIN_TOTAL_PX * self.sx:
+            return None
+        found.sort()
+        acc = 0
+        for a, w in found:  # length-weighted median
+            acc += w
+            if acc >= total / 2:
+                median = a
+                break
+        agree = sum(w for a, w in found if abs(a - median) < 2)
+        if agree < total * 0.6:
+            return None  # lines disagree: not a clean edge
+        return median
+
     def screen_point(self, xy):
         return (
             self.monitor["left"] + int(xy[0] * self.sx),

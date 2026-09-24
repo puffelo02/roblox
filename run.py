@@ -2,6 +2,7 @@
 
 Double-click this file, or run:   python run.py
 Add --no-update to start without downloading:   python run.py --no-update
+Add --recalibrate after changing your Walk Speed: python run.py --recalibrate
 """
 import io
 import os
@@ -44,6 +45,9 @@ def main():
             update()
         except Exception as e:
             print("Update failed, starting the version already here:", e)
+    if "--recalibrate" in sys.argv and os.path.exists("calibration.json"):
+        os.remove("calibration.json")
+        print("Calibration reset: the bot will measure walk and turn speed again.")
     subprocess.call([sys.executable, "-m", "pyramid_bot.bot"])
     input("Bot stopped. Press Enter to close.")
 
