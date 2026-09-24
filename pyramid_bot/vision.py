@@ -152,15 +152,31 @@ class Vision:
         return mask
 
     def find_sign(self, img, which):
-        """Returns (offset, pixels): offset is -1 (far left) .. +1 (far right)."""
+        """Returns (offset, pixels): offset is -1 (far left) .. +1 (far right).
+
+        Signs are wide, thin text floating above the horizon. Red/green gym gear
+        is chunkier and sits lower, so blobs are filtered by shape and height."""
         ranges = C.RED_RANGES if which == "blocks" else C.GREEN_RANGES
         mask = self._sign_mask(img, ranges)
-        pixels = int(cv2.countNonZero(mask))
-        if pixels < C.MIN_SIGN_PIXELS * self.sx * self.sy:
-            return None, pixels
-        xs = np.nonzero(mask)[1]
-        w = img.shape[1]
-        return (float(np.median(xs)) - w / 2) / (w / 2), pixels
+        max_y = C.SIGN_MAX_Y * self.sy
+        mask[int(max_y):, :] = 0
+        # join the letters into one blob per sign
+        joined = cv2.dilate(mask, np.ones((5, 15), np.uint8))
+        n, _, stats, cents = cv2.connectedComponentsWithStats(joined)
+        best = None
+        for i in range(1, n):
+            x, y, w, h = stats[i][:4]
+            if h == 0 or w / h < C.SIGN_MIN_ASPECT:
+                continue
+            px = int(cv2.countNonZero(mask[y:y + h, x:x + w]))
+            if px < C.MIN_SIGN_PIXELS * self.sx * self.sy:
+                continue
+            if best is None or px > best[1]:
+                best = (cents[i][0], px)
+        if best is None:
+            return None, 0
+        half = img.shape[1] / 2
+        return (float(best[0]) - half) / half, best[1]
 
     # ---------- Debug ----------
     def save(self, img, tag):
