@@ -217,21 +217,28 @@ class Navigator:
         jumps = 0
         free = 0
         since_wall = 0.0
-        for _ in range(n * 3 + 10):
+        # one forward jump per finished layer, whether or not a wall was "seen"
+        # (the step check can miss low steps, which left it at the bottom)
+        for _ in range(n):
+            self.c.check()
+            self.c.jump_forward()
+            jumps += 1
+        since_wall = C.JUMP_FORWARD_SEC
+        for _ in range(C.MAX_CLIMB_JUMPS):
             self.c.check()
             t0 = time.time()
             if self.b.walk_step_blocked(C.CLIMB_STEP_SEC):
-                self.c.jump_forward()
+                self.c.jump_forward()  # still a step in front: keep going up
                 jumps += 1
                 free = 0
-                since_wall = C.JUMP_FORWARD_SEC  # W time of that jump
+                since_wall = C.JUMP_FORWARD_SEC
             else:
                 free += 1
                 since_wall += time.time() - t0  # real time W was held
-                # walking freely after climbing = on top (a jump can take more than one step)
-                if free >= 2 and (jumps > 0 or n == 0):
+                if free >= 2:
                     break
         log.info("climbed %d layers (%d jumps)", n, jumps)
+        self.jumps = jumps
         return since_wall
 
     def anchor(self, completed):
@@ -265,7 +272,8 @@ class Navigator:
             self.c.hold("a", offset * self.spb)
             self.x = self.base - offset
         since_wall = self.climb_layers(completed)
-        self.y = max(0, completed - 1) + since_wall / self.spb
+        # each jump went up one step; the last step's edge is at y = jumps - 1
+        self.y = max(0, self.jumps - 1) + since_wall / self.spb
         self.heading = 0
         log.info("anchored at (%.1f, %.1f)", self.x, self.y)
         return True
@@ -311,6 +319,12 @@ class Navigator:
                     if cur and cur[0] > state["last_n"]:
                         state["last_n"] = cur[0]
                         state["last_rise"] = now
+                        layer = G.layer_info(cur[0], self.base)[0]
+                        if layer > state.get("layer", layer):
+                            log.info("layer %d finished!", layer)
+                            state["layer"] = layer
+                            return "layer"
+                        state["layer"] = layer
                     if self.b.pyramid_done():
                         return "done"
                 if now >= state["next_cap"]:
@@ -432,8 +446,14 @@ class Navigator:
                     self.c.up("e")
                     self.b.build(max_sec=C.CLEANUP_SEC, climb_first=False)
                     return "lost"  # position unknown now: re-anchor on the next trip
+                state["layer"] = completed
                 for tx, ty in path:
                     status = self.walk_to(tx, ty, state)
+                    if status == "layer":
+                        # next layer: hop up onto it and plan a new, smaller spiral
+                        self.c.hold("space", C.JUMP_HOLD_SEC)
+                        outward_done = False
+                        break
                     if status:
                         return status
         finally:
