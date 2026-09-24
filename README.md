@@ -23,6 +23,10 @@ and saves `calibrate_regions.png`. Make sure the numbers match the screen.
 
 ## Run
 
+Easiest: double-click `run.py` (or `python run.py`). It downloads the latest version, then starts the bot.
+
+Manual:
+
 Stand near the pyramid, camera looking forward and slightly down, then:
 ```
 python -m pyramid_bot.bot
