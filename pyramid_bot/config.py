@@ -14,7 +14,9 @@ REGION_MENU_X = (1440, 190, 1530, 265)    # red X of the Upgrades menu
 MENU_X_CLICK = (1482, 228)                # where to click to close it
 # Areas covered by the HUD, ignored when looking for the signs
 HUD_MASKS = [
-    (0, 0, 1920, 160),       # top bar + robux buttons
+    (0, 0, 1920, 70),        # Roblox top bar icons
+    (640, 0, 1370, 152),     # block counter + robux buttons
+    (1430, 55, 1920, 150),   # leaderboard
     (0, 300, 420, 1080),     # left stats
     (1700, 380, 1920, 1080), # right boosts
 ]
@@ -25,6 +27,7 @@ RED_RANGES = [((0, 150, 150), (8, 255, 255)), ((170, 150, 150), (179, 255, 255))
 # Bright green "PYRAMID" sign
 GREEN_RANGES = [((45, 150, 150), (75, 255, 255))]
 MIN_SIGN_PIXELS = 40
+SIGN_NEAR_TOP_Y = 260     # sign last seen above this line and then gone = we're right under it
 SIGN_MAX_Y = 360               # signs float above the horizon; ignore anything lower
 SIGN_MIN_ASPECT = 3.5          # sign text is wide and thin (gym gear is chunky)
 PYRAMID_PANEL_HSV = ((30, 25, 100), (75, 150, 230))  # muted green panel behind PYRAMID
@@ -39,6 +42,7 @@ TURN_180_SEC = 0.90
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.08    # sign within +-8% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
+NEAR_SIGN_STEPS = 30      # steps straight ahead after a sign goes above the screen
 PLOT_ENTER_SEC = 1.0      # walk forward this long after reaching the PYRAMID sign
 TURN_SETTLE_SEC = 0.1     # let the character turn to face forward before comparing
 BLOCKED_DIFF = 1.0        # view changes less than this after walking = blocked by a wall

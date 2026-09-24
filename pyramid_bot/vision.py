@@ -15,6 +15,7 @@ pytesseract.pytesseract.tesseract_cmd = C.TESSERACT_CMD
 
 class Vision:
     def __init__(self):
+        self.last_sign_y = None
         self.sct = mss.mss()
         mon = self.sct.monitors[1]
         self.monitor = mon
@@ -230,9 +231,10 @@ class Vision:
             if which == "pyramid" and self._panel_ratio(img, x, y, w, h) < C.PYRAMID_PANEL_MIN:
                 continue  # green text without the sign's panel: gym label etc.
             if best is None or px > best[1]:
-                best = (cents[i][0], px)
+                best = (cents[i][0], px, cents[i][1] / self.sy)
         if best is None:
             return None, 0
+        self.last_sign_y = best[2]  # height on screen (1080p), used to tell "right under it"
         half = img.shape[1] / 2
         return (float(best[0]) - half) / half, best[1]
 

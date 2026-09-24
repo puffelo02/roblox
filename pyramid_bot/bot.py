@@ -87,6 +87,7 @@ class Bot:
         start = time.time()
         searched = 0.0
         blocked = 0
+        last_y = None
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
             img = self.v.grab()
@@ -96,6 +97,22 @@ class Bot:
             if arrived(img, pixels):
                 log.info("arrived at %s", which)
                 return True
+            if offset is not None:
+                last_y = self.v.last_sign_y
+            if offset is None and last_y is not None and last_y < C.SIGN_NEAR_TOP_Y:
+                # it went off the top of the screen: we're right next to it, keep going
+                log.info("%s sign went above the screen: walking straight ahead", which)
+                last_y = None
+                for _ in range(C.NEAR_SIGN_STEPS):
+                    if self.walk_step_blocked(C.WALK_STEP_SEC):
+                        if stop_when_blocked:
+                            log.info("blocked by a wall right under the %s sign: arrived", which)
+                            return True
+                        self.c.jump_forward()
+                    if arrived(self.v.grab(), 0):
+                        log.info("arrived at %s", which)
+                        return True
+                continue
             if offset is None:
                 # not in view: spin the camera to look for it
                 self.c.turn_right(C.TURN_90_SEC / 3)
