@@ -77,15 +77,17 @@ MAX_RECOVERIES = 3        # turn-back attempts before walking to the PYRAMID sig
 # start once with:  python run.py --recalibrate
 CALIBRATION_FILE = "calibration.json"   # measured values, kept between updates
 LANE_BLOCKS = 2.5         # blocks between spiral passes (needs place range >= half of this + margin)
-EDGE_INSET = 1.5          # outermost lap this far from the layer edge (room for small errors)
+EDGE_INSET = 2.0          # outermost lap this far from the layer edge (room for small errors)
 # corner by sight: where the step edges end on screen
-CORNER_BAND = (380, 800)      # rows (1080p) where the step edges show
+CORNER_BAND = (380, 580)      # rows (1080p) where the step edges show (above the feet)
+CORNER_MIN_ROWS = 3           # rows with a long edge needed to trust it
 CORNER_MIN_LEN = 300          # an edge band must be this long to count as steps
 CORNER_HUD_MASKS = [(0, 300, 430, 1080), (1740, 380, 1920, 700), (0, 0, 1920, 160),
                     (1760, 980, 1920, 1080), (0, 980, 340, 1080)]
 CORNER_VISIBLE = (440, 1730)  # step ends outside this can't be seen (HUD / screen edge)
+CORNER_BACKUP_SEC = 0.3      # step back this long when the steps can't be seen
 CORNER_SLIDE_SEC = 0.25       # slide this long between looks
-CORNER_TARGET_PX = 0          # stop when the steps end this far right of the character
+CORNER_TARGET_PX = 30          # stop with the steps ending this far past the character (= just inside the corner)
 WALL_CHECK_SEC = 0.4      # slide along the base wall this long between checks
 WALL_PROBE_SEC = 0.15     # press W this long to check the wall is still there
 WALL_CREEP_SEC = 0.04     # small steps back toward the corner to find its exact edge
@@ -98,6 +100,7 @@ ALIGN_GAIN = 0.6          # how much of the measured error to correct per try
 ALIGN_MAX_ITER = 8
 ALIGN_ON_PYRAMID_MAX_DEG = 6  # on top, only trust small corrections
 TURN_CAL_MAX_SEC = 12     # longest camera spin when measuring a full turn
+REANCHOR_EXTRA = 12       # walk this many blocks past the estimated edge when going down
 LOST_SEC = 8              # nothing placed, no cube, layer far from done = lost
 EDGE_LAP_INSETS = (0.7, 1.7)  # laps this far from the edge to pick up missed blocks
 CLEANUP_SEC = 25          # follow the cube this long when a layer has a few missed spots

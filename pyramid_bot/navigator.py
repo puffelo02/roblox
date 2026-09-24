@@ -125,28 +125,41 @@ class Navigator:
         target = cx + C.CORNER_TARGET_PX if key == "d" else cx - C.CORNER_TARGET_PX
         slid = 0.0
         unseen = 0
+        backed = 0.0
+        last_end = None
         while slid < C.WALL_MAX_SEC:
             self.c.check()
-            span = self.v.steps_extent(self.v.grab())
-            # the pyramid's steps run across the screen from the side we're coming from
-            if span is not None and not (span[0] < C.CORNER_VISIBLE[0] + 30 if key == "d"
-                                         else span[1] > C.CORNER_VISIBLE[1] - 30):
+            img = self.v.grab()
+            span = self.v.steps_extent(img)
+            # the pyramid's steps must be in front of the character
+            if span is not None and not (span[0] < cx + 100 and span[1] > cx - 100):
                 span = None
             if span is None:
                 unseen += 1
-                if unseen >= 3:
+                self.v.save(img, "no_steps")
+                if unseen >= 4:
                     log.warning("can't see the pyramid's steps to find the corner")
                     if slid:
                         self.c.hold("a" if key == "d" else "d", slid)  # back to the start
+                    self.c.hold("w", backed)  # and back against the wall
                     return None
-                self.c.sleep(0.15)  # look again without moving
+                # too close to the wall to see the steps? step back and look again
+                self.c.hold("s", C.CORNER_BACKUP_SEC)
+                backed += C.CORNER_BACKUP_SEC
                 continue
             unseen = 0
             end = span[1] if key == "d" else span[0]
             visible = C.CORNER_VISIBLE[0] < end < C.CORNER_VISIBLE[1]
             reached = visible and (end <= target if key == "d" else end >= target)
+            if not visible and last_end is not None and abs(last_end - target) < 400:
+                log.info("steps' end slipped past the character: taking that as the corner")
+                reached = True
+            last_end = end if visible else None
             if reached:
                 log.info("corner in front of us (steps end at x=%d), slid %.2fs", end, slid)
+                self.v.save(img, "corner")
+                if backed:
+                    self.c.hold("w", backed + 0.3)  # back against the base wall
                 return slid
             # far away: bigger slides; close: small ones so we don't overshoot
             dist_px = abs(end - target) if visible else 800
@@ -206,6 +219,7 @@ class Navigator:
         since_wall = 0.0
         for _ in range(n * 3 + 10):
             self.c.check()
+            t0 = time.time()
             if self.b.walk_step_blocked(C.CLIMB_STEP_SEC):
                 self.c.jump_forward()
                 jumps += 1
@@ -213,7 +227,7 @@ class Navigator:
                 since_wall = C.JUMP_FORWARD_SEC  # W time of that jump
             else:
                 free += 1
-                since_wall += C.CLIMB_STEP_SEC
+                since_wall += time.time() - t0  # real time W was held
                 # walking freely after climbing = on top (a jump can take more than one step)
                 if free >= 2 and (jumps > 0 or n == 0):
                     break
@@ -241,8 +255,8 @@ class Navigator:
             self.cal["sec_per_block"] = round(slid / self.base, 5)
             self._save_cal()
             at_left = True
-        # climb one block inside the layer being built, n+1 blocks from the corner
-        offset = completed + 1
+        # climb two blocks inside the layer being built (not too close to the edge)
+        offset = completed + 2
         self.align()
         if at_left:
             self.c.hold("d", offset * self.spb)
@@ -330,9 +344,11 @@ class Navigator:
         if status:
             return status
         self.face(180)
-        self.walk(self.y + 4, state, check_lost=False)
+        # plenty extra: the estimate may be off after a long spiral, and a few
+        # blocks out into the desert don't hurt
+        self.walk(self.y + C.REANCHOR_EXTRA, state, check_lost=False)
         self.face(0)
-        for _ in range(40):  # back toward the pyramid until the base wall stops us
+        for _ in range(80):  # back toward the pyramid until the base wall stops us
             if self.b.walk_step_blocked(C.CLIMB_STEP_SEC):
                 break
         if not self.anchor(completed):

@@ -219,7 +219,7 @@ class Vision:
         spans = []
         for i in range(1, n):
             x, y, w, h = st[i][:4]
-            if w >= C.CORNER_MIN_LEN * self.sx and h < 60 * self.sy:
+            if w >= C.CORNER_MIN_LEN * self.sx:
                 spans.append((x / self.sx, (x + w) / self.sx))
         if not spans:
             return None
