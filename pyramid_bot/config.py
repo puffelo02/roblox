@@ -15,6 +15,7 @@ HUD_MASKS = [
     (0, 0, 1920, 160),       # top bar + robux buttons
     (0, 300, 420, 1080),     # left stats
     (1700, 380, 1920, 1080), # right boosts
+    (0, 400, 1920, 1080),    # lower screen: signs float high, ignore red gym gear etc.
 ]
 
 # --- Sign colors (HSV, OpenCV ranges: H 0-179, S/V 0-255) ---
@@ -22,7 +23,7 @@ HUD_MASKS = [
 RED_RANGES = [((0, 150, 150), (8, 255, 255)), ((170, 150, 150), (179, 255, 255))]
 # Bright green "PYRAMID" sign
 GREEN_RANGES = [((45, 150, 150), (75, 255, 255))]
-MIN_SIGN_PIXELS = 150          # fewer matching pixels = sign not visible
+MIN_SIGN_PIXELS = 40          # fewer matching pixels = sign not visible
 PYRAMID_SIGN_ARRIVED_PIXELS = 8000  # sign this big on screen = we're at the plot
 
 # --- Movement timings (seconds) ---
