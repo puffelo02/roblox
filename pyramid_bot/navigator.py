@@ -254,7 +254,8 @@ class Navigator:
                 break
         if not ws:
             return
-        old = self.cal.get("walkspeed")
+        # older calibrations didn't store it: they were measured at 30
+        old = self.cal.get("walkspeed", 30 if self.spb else None)
         if self.spb and old and old != ws:
             self.cal["sec_per_block"] = round(self.spb * old / ws, 5)
             log.info("walk speed changed %s -> %s: time per block now %.4fs", old, ws, self.spb)
