@@ -26,7 +26,9 @@ RED_RANGES = [((0, 150, 150), (8, 255, 255)), ((170, 150, 150), (179, 255, 255))
 GREEN_RANGES = [((45, 150, 150), (75, 255, 255))]
 MIN_SIGN_PIXELS = 40
 SIGN_MAX_Y = 360               # signs float above the horizon; ignore anything lower
-SIGN_MIN_ASPECT = 3.5          # sign text is wide and thin (gym gear is chunky)          # fewer matching pixels = sign not visible
+SIGN_MIN_ASPECT = 3.5          # sign text is wide and thin (gym gear is chunky)
+PYRAMID_PANEL_HSV = ((30, 25, 100), (75, 150, 230))  # muted green panel behind PYRAMID
+PYRAMID_PANEL_MIN = 0.25       # share of panel color around the text to count as the real sign          # fewer matching pixels = sign not visible
 PYRAMID_SIGN_ARRIVED_PIXELS = 8000  # sign this big on screen = we're at the plot
 
 # --- Movement timings (seconds) ---
@@ -47,15 +49,16 @@ INDICATOR_HSV = ((36, 60, 90), (60, 255, 255))   # the green cube's color
 INDICATOR_SEARCH = (480, 470, 1440, 1000)         # only look around the character
 INDICATOR_MIN_AREA = 40
 INDICATOR_MAX_AREA = 4000
-INDICATOR_NEAR_PX = 90    # cube this close to the character = stand still and place
-MOVE_PULSE_MAX = 0.25     # longest single key press when walking to the cube
-MOVE_PULSE_PER_PX = 0.0015  # press length per pixel of distance
-BUILD_TICK_SEC = 0.2
-EXPLORE_STEP_SEC = 0.2    # one exploring step when no cube is in range
-EXPLORE_LEG_STEPS = 8     # steps in the same direction before turning 90 degrees
-EXPLORE_LEG_GROW = 4      # each new leg is this many steps longer (widening spiral)
-EXPLORE_LOST_STEPS = 120  # exploring this long without a cube = walk back to the pyramid
-NEAR_STALL_SEC = 2.0      # standing at the cube but counter not rising = nudge onto it
+BUILD_TICK_SEC = 0.1      # how often the screen is checked while building
+COUNTER_EVERY_SEC = 1.0   # counter OCR is slow: only read it this often
+CAPACITY_EVERY_SEC = 3.0
+STEER_DEADZONE_DEG = 15   # cube this close to straight ahead = don't turn
+STEER_MAX_SEC = 0.12      # longest camera turn per check (keeps turns smooth)
+SPIRAL_TURN_START = 0.02  # camera turn per check with no cube (big circle)...
+SPIRAL_TURN_GROW = 0.0005 # ...getting a bit tighter every check
+SPIRAL_TURN_MAX = 0.06
+FALL_SEC = 3.0            # no cube and nothing placed this long = fell off, turn back
+MAX_RECOVERIES = 3        # turn-back attempts before walking to the PYRAMID sign
 
 # --- Loop ---
 PICKUP_STALL_SEC = 12      # capacity not rising this long = step to a fresh spot in the pit

@@ -151,6 +151,21 @@ class Vision:
             mask[y1:y2, x1:x2] = 0
         return mask
 
+    @staticmethod
+    def _panel_ratio(img, x, y, w, h):
+        """The real PYRAMID sign has a muted green see-through panel around the
+        text. Returns the share of panel-colored pixels just around the text."""
+        H, W = img.shape[:2]
+        x1, x2 = max(0, int(x - w * 0.25)), min(W, int(x + w * 1.25))
+        y1, y2 = max(0, int(y - h * 0.4)), min(H, int(y + h * 1.4))
+        hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)
+        panel = cv2.inRange(hsv, *C.PYRAMID_PANEL_HSV)
+        # only count the ring around the text, not the text itself
+        ring = np.ones(panel.shape, np.uint8)
+        ring[y - y1:y - y1 + h, x - x1:x - x1 + w] = 0
+        total = int(ring.sum())
+        return cv2.countNonZero(panel & (ring * 255)) / total if total else 0.0
+
     def find_sign(self, img, which):
         """Returns (offset, pixels): offset is -1 (far left) .. +1 (far right).
 
@@ -171,6 +186,8 @@ class Vision:
             px = int(cv2.countNonZero(mask[y:y + h, x:x + w]))
             if px < C.MIN_SIGN_PIXELS * self.sx * self.sy:
                 continue
+            if which == "pyramid" and self._panel_ratio(img, x, y, w, h) < C.PYRAMID_PANEL_MIN:
+                continue  # green text without the sign's panel: gym label etc.
             if best is None or px > best[1]:
                 best = (cents[i][0], px)
         if best is None:

@@ -252,101 +252,106 @@ class Bot:
         return False
 
     def build(self):
-        """Follow the green placement cube with E held until out of blocks.
+        """Keep walking (W + E held) and steer with the camera, never stopping.
 
-        The cube only shows up when a free spot is within placing range, so:
-        cube next to us   -> stand still, blocks go down
-        cube further away -> walk to it (W/A/S/D by where it is on screen)
-        no cube           -> explore: keep going the way we were last heading
-                             (free spots usually continue along the layer edge);
-                             no luck after a while -> turn 90 and go a bit further
-                             each time (widening square spiral), jumping when blocked
+        cube visible -> turn the camera toward it while walking over it
+        no cube      -> walk a circle that slowly tightens (spiral toward the center)
+        fell off     -> nothing placed and no cube for a while: the pyramid is behind
+                        us, so turn around and climb back up
         """
         log.info("building")
         self.climb()
-        heading = (0.0, -1.0)  # screen direction we last moved in (up = forward)
-        explore_steps = 0
-        leg_len = C.EXPLORE_LEG_STEPS
-        explore_total = 0
-        last_n = None
-        last_rise = time.time()
-        ticks = 0
+        last_n = self.counter()[0] if self.counter() else None
+        last_rise = last_ind = time.time()
+        next_counter = next_cap = time.time()
+        spiral_turn = C.SPIRAL_TURN_START
+        prev_scene = None
+        blocked = 0
+        failed_recoveries = 0
         self.c.down("e")
+        self.c.down("w")
         try:
             while True:
                 self.c.sleep(C.BUILD_TICK_SEC)
+                now = time.time()
                 img = self.v.grab()
                 if self.close_menu(img):
                     self.c.down("e")
+                    self.c.down("w")
                     continue
-                cur = self.counter(img)
-                if cur and (last_n is None or cur[0] > last_n):
-                    last_n = cur[0]
-                    last_rise = time.time()
-                if self.pyramid_done():
-                    return
-                ticks += 1
-                if ticks % 5 == 0 and self.empty():
-                    return
-                rising = time.time() - last_rise < 1.0
+
+                # slow OCR only once in a while
+                if now >= next_counter:
+                    next_counter = now + C.COUNTER_EVERY_SEC
+                    cur = self.counter(img)
+                    if cur and (last_n is None or cur[0] > last_n):
+                        last_n = cur[0]
+                        last_rise = now
+                        failed_recoveries = 0
+                    if self.pyramid_done():
+                        return
+                if now >= next_cap:
+                    next_cap = now + C.CAPACITY_EVERY_SEC
+                    if self.empty():
+                        return
+
+                # hop when a step blocks us
+                scene = self.v.scene_small(img)
+                if prev_scene is not None and self.v.scene_diff(prev_scene, scene) < C.BLOCKED_DIFF:
+                    blocked += 1
+                    if blocked >= 3:
+                        self.c.hold("space", C.JUMP_HOLD_SEC)
+                        blocked = 0
+                else:
+                    blocked = 0
+                prev_scene = scene
 
                 ind = self.v.find_indicator(img)
                 if ind is not None:
-                    explore_steps = 0
-                    explore_total = 0
-                    leg_len = C.EXPLORE_LEG_STEPS
-                    dx, dy = ind
-                    dist = (dx * dx + dy * dy) ** 0.5
-                    if dist < C.INDICATOR_NEAR_PX and (rising or time.time() - last_rise < C.NEAR_STALL_SEC):
-                        continue  # on the spot: let E do its work
-                    heading = (dx / max(dist, 1), dy / max(dist, 1))
-                    self.move_toward(dx, dy, dist)
+                    last_ind = now
+                    spiral_turn = C.SPIRAL_TURN_START
+                    self.steer_toward(*ind)
                     continue
 
-                if rising:
-                    continue  # blocks still going down, stay
-                # --- explore ---
-                explore_steps += 1
-                explore_total += 1
-                if explore_total >= C.EXPLORE_LOST_STEPS:
-                    log.info("no free spot found for a long time, back to the pyramid")
-                    self.v.save(img, "no_cube")
-                    self.c.up("e")
-                    self.go_to_pyramid()
+                # no cube: fell off the edge?
+                if now - last_ind > C.FALL_SEC and now - last_rise > C.FALL_SEC:
+                    failed_recoveries += 1
+                    log.info("nothing to place for %.0fs, probably fell off: turning back (%d)",
+                             now - last_ind, failed_recoveries)
+                    self.v.save(img, "fell")
+                    self.c.up("w")
+                    if failed_recoveries >= C.MAX_RECOVERIES:
+                        log.info("still lost, walking back to the PYRAMID sign")
+                        self.c.up("e")
+                        self.go_to_pyramid()
+                        failed_recoveries = 0
+                    else:
+                        self.c.turn_right(C.TURN_180_SEC)
                     self.climb()
                     self.c.down("e")
-                    explore_total = 0
-                    explore_steps = 0
-                    leg_len = C.EXPLORE_LEG_STEPS
+                    self.c.down("w")
+                    last_ind = last_rise = time.time()
+                    spiral_turn = C.SPIRAL_TURN_START
                     continue
-                if explore_steps > leg_len:
-                    heading = (-heading[1], heading[0])  # turn 90 degrees
-                    explore_steps = 0
-                    leg_len += C.EXPLORE_LEG_GROW
-                    log.info("exploring: turning, next leg %d steps", leg_len)
-                before = self.v.scene_small(img)
-                self.move_toward(heading[0] * 200, heading[1] * 200, 200, C.EXPLORE_STEP_SEC)
-                if self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF:
-                    self.c.hold("space", C.JUMP_HOLD_SEC)  # a step in the way: hop
+
+                # spiral: keep turning a little, a bit more each time (tighter circle)
+                self.c.turn_right(spiral_turn)
+                spiral_turn = min(C.SPIRAL_TURN_MAX, spiral_turn + C.SPIRAL_TURN_GROW)
         finally:
+            self.c.up("w")
             self.c.up("e")
 
-    def move_toward(self, dx, dy, dist, pulse=None):
-        """Short key press toward a point on screen (up = forward)."""
-        keys = []
-        if abs(dy) > dist * 0.35:
-            keys.append("w" if dy < 0 else "s")
-        if abs(dx) > dist * 0.35:
-            keys.append("d" if dx > 0 else "a")
-        if pulse is None:
-            pulse = min(C.MOVE_PULSE_MAX, max(0.05, dist * C.MOVE_PULSE_PER_PX))
-        for k in keys:
-            self.c.down(k)
-        try:
-            self.c.sleep(pulse)
-        finally:
-            for k in keys:
-                self.c.up(k)
+    def steer_toward(self, dx, dy):
+        """Turn the camera toward a point on screen while walking (up = ahead)."""
+        import math
+        angle = math.degrees(math.atan2(dx, -dy))  # 0 = straight ahead, +90 = right
+        if abs(angle) < C.STEER_DEADZONE_DEG:
+            return
+        sec = min(C.STEER_MAX_SEC, abs(angle) / 90 * C.TURN_90_SEC)
+        if angle > 0:
+            self.c.turn_right(sec)
+        else:
+            self.c.turn_left(sec)
 
     # ---------- main loop ----------
     def run(self):
