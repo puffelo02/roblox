@@ -252,97 +252,88 @@ class Bot:
         return False
 
     def build(self):
-        """Lawnmower sweep with E held the whole time.
+        """Follow the green placement cube with E held until out of blocks.
 
-        Walk forward while the counter keeps rising. When it stops rising for a
-        moment we've hit the edge (or an already filled stretch): turn around,
-        shift one lane sideways, climb back up if we dropped off, and keep going.
-        Lanes march in one direction across the pyramid, then come back.
+        cube next to us   -> stand still, blocks go down
+        cube further away -> walk to it (W/A/S/D by where it is on screen)
+        no cube in view   -> turn the camera to look around; if still nothing,
+                             take a small step (jumping if blocked) and look again
         """
         log.info("building")
         self.climb()
-        # which way the lanes march: "d" = to our right at the start
-        shift_key = "d"
-        dead_lanes = 0
+        searches = 0
+        turns = 0
+        last_n = None
+        last_rise = time.time()
+        ticks = 0
         self.c.down("e")
         try:
             while True:
-                lane_placed = self.sweep_lane()
-                if lane_placed is None:  # out of blocks or pyramid done
-                    return
-                dead_lanes = dead_lanes + 1 if lane_placed == 0 else 0
-                if dead_lanes >= C.DEAD_LANES_REVERSE:
-                    # nothing left on this side: march back the other way
-                    log.info("side done, reversing lane direction")
-                    shift_key = "a" if shift_key == "d" else "d"
-                if dead_lanes >= C.DEAD_LANES_LOST:
-                    log.info("lost: no progress for %d lanes, heading back to the pyramid", dead_lanes)
-                    self.v.save(self.v.grab(), "lost_on_pyramid")
-                    self.c.up("e")
-                    self.go_to_pyramid()
-                    self.climb()
-                    self.c.down("e")  # climb's test placement lets go of E
-                    dead_lanes = 0
-                    continue
-                # turn around and shift one lane. After a 180 turn our left/right
-                # are swapped, so flip the key to keep marching the same way.
-                self.c.turn_right(C.TURN_180_SEC)
-                shift_key = "a" if shift_key == "d" else "d"
-                self.c.hold(shift_key, C.LANE_SHIFT_SEC)
-                # if we walked off the edge, jump back up (returns at once if already on top)
-                self.climb()
-                self.c.down("e")  # climb's test placement lets go of E
-        finally:
-            self.c.up("e")
-
-    def sweep_lane(self):
-        """Walk forward placing until progress stops. Returns blocks placed,
-        or None when out of blocks / pyramid finished."""
-        start = self.counter()
-        start_n = start[0] if start else 0
-        last_n = start_n
-        last_rise = time.time()
-        lane_start = time.time()
-        ticks = 0
-        blocked = 0
-        prev = self.v.scene_small(self.v.grab())
-        self.c.down("w")
-        try:
-            while time.time() - lane_start < C.LANE_MAX_SEC:
                 self.c.sleep(C.BUILD_TICK_SEC)
                 img = self.v.grab()
                 if self.close_menu(img):
                     self.c.down("e")
-                    self.c.down("w")
                     continue
-                scene = self.v.scene_small(img)
-                if self.v.scene_diff(prev, scene) < C.BLOCKED_DIFF:
-                    blocked += 1
-                    if blocked >= 2:
-                        # a step of the next layer is in front of us: hop up
-                        self.c.hold("space", C.JUMP_HOLD_SEC)
-                        blocked = 0
-                else:
-                    blocked = 0
-                prev = scene
                 cur = self.counter(img)
-                n = cur[0] if cur else last_n
-                if n > last_n:
-                    last_n = n
+                if cur and (last_n is None or cur[0] > last_n):
+                    last_n = cur[0]
                     last_rise = time.time()
                 if self.pyramid_done():
-                    return None
+                    return
                 ticks += 1
-                if ticks % 4 == 0 and self.empty():
-                    return None
-                if time.time() - last_rise > C.LANE_STALL_SEC:
-                    # progress stopped: edge of the pyramid or filled stretch
-                    break
+                if ticks % 5 == 0 and self.empty():
+                    return
+                rising = time.time() - last_rise < 1.0
+
+                ind = self.v.find_indicator(img)
+                if ind is None:
+                    if rising:
+                        continue  # blocks are going down, stay
+                    turns += 1
+                    if turns <= C.SEARCH_TURNS:
+                        self.c.turn_right(C.SEARCH_TURN_SEC)
+                        continue
+                    turns = 0
+                    searches += 1
+                    log.info("no placement cube around, stepping forward (%d)", searches)
+                    if searches >= C.LOST_SEARCHES:
+                        log.info("lost, heading back to the pyramid")
+                        self.v.save(img, "no_cube")
+                        self.c.up("e")
+                        self.go_to_pyramid()
+                        self.climb()
+                        self.c.down("e")
+                        searches = 0
+                        continue
+                    if self.walk_step_blocked(C.SEARCH_STEP_SEC):
+                        self.c.jump_forward()
+                    continue
+
+                searches = 0
+                turns = 0
+                dx, dy = ind
+                dist = (dx * dx + dy * dy) ** 0.5
+                if dist < C.INDICATOR_NEAR_PX and (rising or time.time() - last_rise < C.NEAR_STALL_SEC):
+                    continue  # on the spot: let E do its work
+                self.move_toward(dx, dy, dist)
         finally:
-            self.c.up("w")
-        placed = last_n - start_n
-        log.info("lane done: %d blocks", placed)
-        return placed
+            self.c.up("e")
+
+    def move_toward(self, dx, dy, dist):
+        """Short key press toward a point on screen (up = forward)."""
+        keys = []
+        if abs(dy) > dist * 0.35:
+            keys.append("w" if dy < 0 else "s")
+        if abs(dx) > dist * 0.35:
+            keys.append("d" if dx > 0 else "a")
+        pulse = min(C.MOVE_PULSE_MAX, max(0.05, dist * C.MOVE_PULSE_PER_PX))
+        for k in keys:
+            self.c.down(k)
+        try:
+            self.c.sleep(pulse)
+        finally:
+            for k in keys:
+                self.c.up(k)
 
     # ---------- main loop ----------
     def run(self):

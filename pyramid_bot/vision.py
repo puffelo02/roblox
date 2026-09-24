@@ -109,6 +109,31 @@ class Vision:
     def scene_diff(a, b):
         return float(np.mean(np.abs(a - b)))
 
+    def find_indicator(self, img):
+        """Green placement cube. Returns (dx, dy) in 1080p pixels relative to the
+        character (screen center), or None if it isn't visible."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, *C.INDICATOR_HSV)
+        keep = np.zeros_like(mask)
+        x1, y1, x2, y2 = self._scale(C.INDICATOR_SEARCH)
+        keep[y1:y2, x1:x2] = 255
+        mask &= keep
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        n, _, stats, cents = cv2.connectedComponentsWithStats(mask)
+        area_scale = self.sx * self.sy
+        cx, cy = C.CHAR_POS
+        best = None
+        for i in range(1, n):
+            area = stats[i][cv2.CC_STAT_AREA] / area_scale
+            if not (C.INDICATOR_MIN_AREA <= area <= C.INDICATOR_MAX_AREA):
+                continue  # specks, or big green things like menu buttons
+            dx = cents[i][0] / self.sx - cx
+            dy = cents[i][1] / self.sy - cy
+            d = (dx * dx + dy * dy) ** 0.5
+            if best is None or d < best[2]:
+                best = (dx, dy, d)
+        return None if best is None else (best[0], best[1])
+
     def screen_point(self, xy):
         return (
             self.monitor["left"] + int(xy[0] * self.sx),

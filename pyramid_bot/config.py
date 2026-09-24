@@ -39,14 +39,22 @@ WALK_STEP_SEC = 0.25      # one walking step toward a sign
 PLOT_ENTER_SEC = 1.0      # walk forward this long after reaching the PYRAMID sign
 BLOCKED_DIFF = 1.0        # view changes less than this after walking = blocked by a wall
 
-# --- Placement (lawnmower sweep, E held the whole time) ---
-PLACE_HOLD_SEC = 0.6      # hold E this long when testing if placing works (climbing)
-BUILD_TICK_SEC = 0.25     # how often the counter is checked while sweeping
-LANE_STALL_SEC = 1.5      # counter not rising this long = end of lane, turn around
-LANE_SHIFT_SEC = 0.35     # strafe this long to move over one lane (~ your place range)
-LANE_MAX_SEC = 30         # safety: never walk one lane longer than this
-DEAD_LANES_REVERSE = 2    # lanes in a row with nothing placed = march back the other way
-DEAD_LANES_LOST = 6       # this many = we're lost, walk back to the PYRAMID sign
+# --- Placement: follow the green placement cube, E held the whole time ---
+PLACE_HOLD_SEC = 0.6      # hold E this long when testing if placing works
+CHAR_POS = (960, 550)     # where your character stands on screen
+INDICATOR_HSV = ((36, 60, 90), (60, 255, 255))   # the green cube's color
+INDICATOR_SEARCH = (480, 470, 1440, 1000)         # only look around the character
+INDICATOR_MIN_AREA = 40
+INDICATOR_MAX_AREA = 4000
+INDICATOR_NEAR_PX = 90    # cube this close to the character = stand still and place
+MOVE_PULSE_MAX = 0.25     # longest single key press when walking to the cube
+MOVE_PULSE_PER_PX = 0.0015  # press length per pixel of distance
+BUILD_TICK_SEC = 0.2
+SEARCH_TURN_SEC = 0.22    # camera turn per look-around step when no cube is visible
+SEARCH_TURNS = 8          # look-around steps (about a full circle) before moving
+SEARCH_STEP_SEC = 0.35    # step forward after a full look-around found nothing
+LOST_SEARCHES = 6         # full look-arounds without a cube = walk back to the pyramid
+NEAR_STALL_SEC = 2.0      # standing at the cube but counter not rising = nudge onto it
 
 # --- Loop ---
 PICKUP_STALL_SEC = 12      # capacity not rising this long = step to a fresh spot in the pit
