@@ -116,6 +116,53 @@ class Navigator:
             self.align(C.ALIGN_ON_PYRAMID_MAX_DEG)
 
     # ---------- anchoring ----------
+    def slide_to_corner(self, key):
+        """Slide along the base until the end of the step edges is right in front of
+        the character (= corner), by looking at where the steps end on screen.
+        Returns seconds slid, or None if the steps can't be seen (then the caller
+        falls back to feeling for the wall)."""
+        cx = C.CHAR_POS[0]
+        target = cx + C.CORNER_TARGET_PX if key == "d" else cx - C.CORNER_TARGET_PX
+        slid = 0.0
+        unseen = 0
+        while slid < C.WALL_MAX_SEC:
+            self.c.check()
+            span = self.v.steps_extent(self.v.grab())
+            # the pyramid's steps run across the screen from the side we're coming from
+            if span is not None and not (span[0] < C.CORNER_VISIBLE[0] + 30 if key == "d"
+                                         else span[1] > C.CORNER_VISIBLE[1] - 30):
+                span = None
+            if span is None:
+                unseen += 1
+                if unseen >= 3:
+                    log.warning("can't see the pyramid's steps to find the corner")
+                    if slid:
+                        self.c.hold("a" if key == "d" else "d", slid)  # back to the start
+                    return None
+                self.c.sleep(0.15)  # look again without moving
+                continue
+            unseen = 0
+            end = span[1] if key == "d" else span[0]
+            visible = C.CORNER_VISIBLE[0] < end < C.CORNER_VISIBLE[1]
+            reached = visible and (end <= target if key == "d" else end >= target)
+            if reached:
+                log.info("corner in front of us (steps end at x=%d), slid %.2fs", end, slid)
+                return slid
+            # far away: bigger slides; close: small ones so we don't overshoot
+            dist_px = abs(end - target) if visible else 800
+            sec = C.CORNER_SLIDE_SEC if dist_px > 250 else C.CORNER_SLIDE_SEC / 3
+            self.c.hold(key, sec)
+            slid += sec
+        log.warning("no corner found along the wall")
+        return None
+
+    def find_corner(self, key):
+        """Corner by sight first, feeling for the wall's end as a fallback."""
+        slid = self.slide_to_corner(key)
+        if slid is None:
+            slid = self.follow_wall(key)
+        return slid
+
     def follow_wall(self, key):
         """Slide sideways along the base wall until it ends. Returns seconds slid,
         or None if no corner was found."""
@@ -181,14 +228,14 @@ class Navigator:
         if "turn90" not in self.cal:
             self.calibrate_turn()
             self.align()
-        slid = self.follow_wall("d")
+        slid = self.find_corner("d")
         if slid is None:
             return False
         at_left = False
         if self.spb is None:
             log.info("measuring walk speed: sliding to the other corner (%d blocks)", self.base)
             self.align()
-            slid = self.follow_wall("a")
+            slid = self.find_corner("a")
             if slid is None:
                 return False
             self.cal["sec_per_block"] = round(slid / self.base, 5)

@@ -78,6 +78,14 @@ MAX_RECOVERIES = 3        # turn-back attempts before walking to the PYRAMID sig
 CALIBRATION_FILE = "calibration.json"   # measured values, kept between updates
 LANE_BLOCKS = 2.5         # blocks between spiral passes (needs place range >= half of this + margin)
 EDGE_INSET = 1.5          # outermost lap this far from the layer edge (room for small errors)
+# corner by sight: where the step edges end on screen
+CORNER_BAND = (380, 800)      # rows (1080p) where the step edges show
+CORNER_MIN_LEN = 300          # an edge band must be this long to count as steps
+CORNER_HUD_MASKS = [(0, 300, 430, 1080), (1740, 380, 1920, 700), (0, 0, 1920, 160),
+                    (1760, 980, 1920, 1080), (0, 980, 340, 1080)]
+CORNER_VISIBLE = (440, 1730)  # step ends outside this can't be seen (HUD / screen edge)
+CORNER_SLIDE_SEC = 0.25       # slide this long between looks
+CORNER_TARGET_PX = 0          # stop when the steps end this far right of the character
 WALL_CHECK_SEC = 0.4      # slide along the base wall this long between checks
 WALL_PROBE_SEC = 0.15     # press W this long to check the wall is still there
 WALL_CREEP_SEC = 0.04     # small steps back toward the corner to find its exact edge

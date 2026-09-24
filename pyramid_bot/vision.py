@@ -199,6 +199,32 @@ class Vision:
                 rows.append(y)
         return len(rows)
 
+    def steps_extent(self, img):
+        """Horizontal span (left, right) of the pyramid's step edges in 1080p x,
+        or None if no steps are visible. The steps are long horizontal edge bands;
+        where they end is the corner of the pyramid. Ends inside the HUD areas
+        can't be seen, so a value at the visible border means "further than that"."""
+        g = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (5, 5), 0).astype(np.float32)
+        gy = np.abs(cv2.Sobel(g, cv2.CV_32F, 0, 1, ksize=3))
+        gx = np.abs(cv2.Sobel(g, cv2.CV_32F, 1, 0, ksize=3))
+        m = ((gy > 40) & (gy > 2 * gx)).astype(np.uint8) * 255
+        for r in C.CORNER_HUD_MASKS:
+            x1, y1, x2, y2 = self._scale(r)
+            m[y1:y2, x1:x2] = 0
+        _, top, _, bottom = self._scale((0, C.CORNER_BAND[0], 0, C.CORNER_BAND[1]))
+        m[:top] = 0
+        m[bottom:] = 0
+        m = cv2.dilate(m, np.ones((3, 41), np.uint8))  # join the pieces of each edge
+        n, _, st, _ = cv2.connectedComponentsWithStats(m)
+        spans = []
+        for i in range(1, n):
+            x, y, w, h = st[i][:4]
+            if w >= C.CORNER_MIN_LEN * self.sx and h < 60 * self.sy:
+                spans.append((x / self.sx, (x + w) / self.sx))
+        if not spans:
+            return None
+        return min(a for a, _ in spans), max(b for _, b in spans)
+
     def screen_point(self, xy):
         return (
             self.monitor["left"] + int(xy[0] * self.sx),
