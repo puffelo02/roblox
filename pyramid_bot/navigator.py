@@ -209,7 +209,7 @@ class Navigator:
         return True
 
     # ---------- walking with E held ----------
-    def walk(self, blocks, state):
+    def walk(self, blocks, state, check_lost=True):
         """Walk forward `blocks` with W (E held). Returns None, or "empty",
         "done", "lost" if building should stop."""
         duration = blocks * self.spb
@@ -256,7 +256,7 @@ class Navigator:
                     if self.b.empty():
                         return "empty"
                 idle = now - max(state["last_rise"], state["last_cube"])
-                if idle > C.LOST_SEC and self._layer_left() > 0.25:
+                if check_lost and idle > C.LOST_SEC and self._layer_left() > 0.25:
                     log.info("nothing placed for %.0fs on a layer that isn't done: lost", idle)
                     self.v.save(img, "lost_spiral")
                     return "lost"
@@ -270,6 +270,27 @@ class Navigator:
             return 1.0
         n, side, placed = G.layer_info(self.b.last_counter[0], self.base)
         return 1.0 if side <= 0 else 1 - placed / (side * side)
+
+    def reanchor(self, completed, state):
+        """Walk down the near side of the pyramid and anchor at the corner again,
+        which wipes out the small errors that add up while walking."""
+        log.info("re-anchoring: walking down to the base wall")
+        self.c.up("e")
+        # stay away from the side edges so we come down in front of the base wall
+        margin = min(10, self.base / 4)
+        status = self.walk_to(min(max(self.x, margin), self.base - margin), self.y, state)
+        if status:
+            return status
+        self.face(180)
+        self.walk(self.y + 4, state, check_lost=False)
+        self.face(0)
+        for _ in range(40):  # back toward the pyramid until the base wall stops us
+            if self.b.walk_step_blocked(C.CLIMB_STEP_SEC):
+                break
+        if not self.anchor(completed):
+            return "failed"
+        self.c.down("e")
+        return None
 
     def walk_to(self, tx, ty, state):
         moves = []
@@ -307,6 +328,9 @@ class Navigator:
                  "next_counter": now, "next_cap": now + C.CAPACITY_EVERY_SEC}
         self.c.down("e")
         passes = {}  # layer -> how many passes we've done on it
+        outward_done = False
+        edge_fixed = set()  # layers we re-anchored for before the edge laps
+        edge_walked = set()  # layers whose edge laps are done
         try:
             while True:
                 cur = self.b.counter() or self.b.last_counter
@@ -317,11 +341,22 @@ class Navigator:
                 lo, hi = G.layer_bounds(completed, base)
                 tries = passes.get(completed, 0)
                 passes[completed] = tries + 1
-                if tries == 0 or (left >= C.CLEANUP_BELOW and tries < 3):
+                spiral = tries == 0 or (left >= C.CLEANUP_BELOW and tries < 3)
+                if (spiral and outward_done) or (not spiral and completed not in edge_fixed):
+                    # after an inward+outward pair, or before edge laps: fix drift
+                    status = self.reanchor(completed, state)
+                    if status:
+                        return status
+                    outward_done = False
+                    if not spiral:
+                        edge_fixed.add(completed)
+                if spiral:
                     path, kind = G.pick_path((self.x, self.y), lo, hi, C.LANE_BLOCKS, C.EDGE_INSET)
                     log.info("layer %d (%dx%d, %d%% done): spiral %s from (%.0f, %.0f)",
                              completed + 1, side, side, 100 - left * 100, kind, *path[0])
-                elif tries <= 3:
+                    outward_done = kind == "outward"
+                elif completed not in edge_walked:
+                    edge_walked.add(completed)
                     # missed blocks are mostly along the edges: two laps close to them
                     path = (G.ring(lo, hi, C.EDGE_LAP_INSETS[0], (self.x, self.y))
                             + G.ring(lo, hi, C.EDGE_LAP_INSETS[1], (self.x, self.y)))

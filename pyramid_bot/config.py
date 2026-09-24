@@ -68,7 +68,7 @@ LANE_BLOCKS = 2.5         # blocks between spiral passes (needs place range >= h
 EDGE_INSET = 1.5          # outermost lap this far from the layer edge (room for small errors)
 WALL_CHECK_SEC = 0.4      # slide along the base wall this long between checks
 WALL_PROBE_SEC = 0.15     # press W this long to check the wall is still there
-WALL_CREEP_SEC = 0.08     # small steps back toward the corner to find its exact edge
+WALL_CREEP_SEC = 0.04     # small steps back toward the corner to find its exact edge
 WALL_MAX_SEC = 60         # give up looking for the corner after this much sliding
 EDGE_REGION = (480, 440, 1440, 1000)  # where to look for step edges (below the horizon)
 EDGE_MAX_DEG = 20         # only near-horizontal lines count as edges
@@ -79,7 +79,7 @@ ALIGN_MAX_ITER = 8
 ALIGN_ON_PYRAMID_MAX_DEG = 6  # on top, only trust small corrections
 TURN_CAL_MAX_SEC = 12     # longest camera spin when measuring a full turn
 LOST_SEC = 8              # nothing placed, no cube, layer far from done = lost
-EDGE_LAP_INSETS = (1.0, 2.2)  # laps this far from the edge to pick up missed blocks
+EDGE_LAP_INSETS = (0.7, 1.7)  # laps this far from the edge to pick up missed blocks
 CLEANUP_SEC = 25          # follow the cube this long when a layer has a few missed spots
 CLEANUP_BELOW = 0.08      # "a few" = less than 8% of the layer missing
 
