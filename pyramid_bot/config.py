@@ -27,7 +27,9 @@ RED_RANGES = [((0, 150, 150), (8, 255, 255)), ((170, 150, 150), (179, 255, 255))
 # Bright green "PYRAMID" sign
 GREEN_RANGES = [((45, 150, 150), (75, 255, 255))]
 MIN_SIGN_PIXELS = 40
-SIGN_NEAR_TOP_Y = 260     # sign last seen above this line and then gone = we're right under it
+SIGN_NEAR_TOP_Y = 200     # sign last seen above this line...
+SIGN_NEAR_MIN_PX = 400    # ...and this big (close, not far away)...
+SIGN_GONE_CHECKS = 3      # ...then missing this many checks in a row = we're right under it
 SIGN_MAX_Y = 360               # signs float above the horizon; ignore anything lower
 SIGN_MIN_ASPECT = 3.5          # sign text is wide and thin (gym gear is chunky)
 PYRAMID_PANEL_HSV = ((30, 25, 100), (75, 150, 230))  # muted green panel behind PYRAMID

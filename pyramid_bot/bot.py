@@ -111,6 +111,7 @@ class Bot:
         searched = 0.0
         blocked = 0
         last_y = None
+        missing = 0
         detours = 0
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
@@ -122,8 +123,13 @@ class Bot:
                 log.info("arrived at %s", which)
                 return True
             if offset is not None:
-                last_y = self.v.last_sign_y
-            if offset is None and last_y is not None and last_y < C.SIGN_NEAR_TOP_Y:
+                missing = 0
+                near = (self.v.last_sign_y < C.SIGN_NEAR_TOP_Y
+                        and pixels > C.SIGN_NEAR_MIN_PX * self.v.sx * self.v.sy)
+                last_y = self.v.last_sign_y if near else None
+            else:
+                missing += 1
+            if offset is None and last_y is not None and missing >= C.SIGN_GONE_CHECKS:
                 # it went off the top of the screen: we're right next to it, keep going
                 log.info("%s sign went above the screen: walking straight ahead", which)
                 last_y = None
@@ -140,6 +146,9 @@ class Bot:
                     if arrived(self.v.grab(), 0):
                         log.info("arrived at %s", which)
                         return True
+                continue
+            if offset is None and last_y is not None:
+                self.c.hold("w", C.WALK_STEP_SEC)  # close sign just went out of view: keep going
                 continue
             if offset is None:
                 # not in view: spin the camera to look for it
