@@ -20,7 +20,6 @@ class Bot:
     def __init__(self):
         self.v = Vision()
         self.c = Controls()
-        self.ring = 0
         self.last_counter = None
         self.cap_max = None
         self.cap_candidate = None
@@ -232,49 +231,85 @@ class Bot:
         return False
 
     def build(self):
-        """Walk a clockwise spiral holding E at each spot until capacity is empty."""
-        log.info("building, ring %d", self.ring)
+        """Lawnmower sweep with E held the whole time.
+
+        Walk forward while the counter keeps rising. When it stops rising for a
+        moment we've hit the edge (or an already filled stretch): turn around,
+        shift one lane sideways, climb back up if we dropped off, and keep going.
+        Lanes march in one direction across the pyramid, then come back.
+        """
+        log.info("building")
         self.climb()
-        dead_rings = 0
-        while True:
-            side_steps = C.SIDE_STEPS_START - self.ring * C.RING_SHRINK_STEPS
-            if side_steps < 2:
-                log.info("reached the middle, starting from the outside again")
-                self.ring = 0
-                self.c.turn_right(C.TURN_180_SEC)
-                continue
-            ring_progress = 0
-            for side in range(4):
-                stalled = 0
-                step = 0
-                while step < side_steps:
-                    self.c.check()
-                    placed = self.place_here()
-                    ring_progress += placed
-                    stalled = 0 if placed else stalled + 1
-                    if self.empty():
-                        return
-                    if self.pyramid_done():
-                        return
-                    if stalled == 3:
-                        # probably standing below a step: jump up
-                        self.c.jump_forward()
-                    # skip over already filled stretches faster
-                    mult = 2 if stalled >= C.STALL_SPOTS_FOR_SKIP else 1
-                    self.c.hold("w", C.PATTERN_STEP_SEC * mult)
-                    step += mult
-                self.c.turn_right()
-            self.ring += 1
-            if ring_progress == 0:
-                dead_rings += 1
-                if dead_rings >= C.STALL_RINGS_FOR_FALL:
-                    log.info("no progress for a while, probably fell off")
-                    self.v.save(self.v.grab(), "fell")
-                    self.c.turn_right()  # center of a clockwise spiral is to the right
+        # which way the lanes march: "d" = to our right at the start
+        shift_key = "d"
+        dead_lanes = 0
+        self.c.down("e")
+        try:
+            while True:
+                lane_placed = self.sweep_lane()
+                if lane_placed is None:  # out of blocks or pyramid done
+                    return
+                dead_lanes = dead_lanes + 1 if lane_placed == 0 else 0
+                if dead_lanes >= C.DEAD_LANES_REVERSE:
+                    # nothing left on this side: march back the other way
+                    log.info("side done, reversing lane direction")
+                    shift_key = "a" if shift_key == "d" else "d"
+                if dead_lanes >= C.DEAD_LANES_LOST:
+                    log.info("lost: no progress for %d lanes, heading back to the pyramid", dead_lanes)
+                    self.v.save(self.v.grab(), "lost_on_pyramid")
+                    self.c.up("e")
+                    self.go_to_pyramid()
                     self.climb()
-                    dead_rings = 0
-            else:
-                dead_rings = 0
+                    self.c.down("e")  # climb's test placement lets go of E
+                    dead_lanes = 0
+                    continue
+                # turn around and shift one lane. After a 180 turn our left/right
+                # are swapped, so flip the key to keep marching the same way.
+                self.c.turn_right(C.TURN_180_SEC)
+                shift_key = "a" if shift_key == "d" else "d"
+                self.c.hold(shift_key, C.LANE_SHIFT_SEC)
+                # if we walked off the edge, jump back up (returns at once if already on top)
+                self.climb()
+                self.c.down("e")  # climb's test placement lets go of E
+        finally:
+            self.c.up("e")
+
+    def sweep_lane(self):
+        """Walk forward placing until progress stops. Returns blocks placed,
+        or None when out of blocks / pyramid finished."""
+        start = self.counter()
+        start_n = start[0] if start else 0
+        last_n = start_n
+        last_rise = time.time()
+        lane_start = time.time()
+        ticks = 0
+        self.c.down("w")
+        try:
+            while time.time() - lane_start < C.LANE_MAX_SEC:
+                self.c.sleep(C.BUILD_TICK_SEC)
+                img = self.v.grab()
+                if self.close_menu(img):
+                    self.c.down("e")
+                    self.c.down("w")
+                    continue
+                cur = self.counter(img)
+                n = cur[0] if cur else last_n
+                if n > last_n:
+                    last_n = n
+                    last_rise = time.time()
+                if self.pyramid_done():
+                    return None
+                ticks += 1
+                if ticks % 4 == 0 and self.empty():
+                    return None
+                if time.time() - last_rise > C.LANE_STALL_SEC:
+                    # progress stopped: edge of the pyramid or filled stretch
+                    break
+        finally:
+            self.c.up("w")
+        placed = last_n - start_n
+        log.info("lane done: %d blocks", placed)
+        return placed
 
     # ---------- main loop ----------
     def run(self):
@@ -285,7 +320,6 @@ class Bot:
                 self.counter()
                 if self.pyramid_done():
                     log.info("pyramid complete: %s", self.last_counter)
-                    self.ring = 0
                     self.c.sleep(5)
                     continue
                 if not self.go_to_blocks():

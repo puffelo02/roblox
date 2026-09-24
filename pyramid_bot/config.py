@@ -39,13 +39,14 @@ WALK_STEP_SEC = 0.25      # one walking step toward a sign
 PLOT_ENTER_SEC = 1.0      # walk forward this long after reaching the PYRAMID sign
 BLOCKED_DIFF = 1.0        # view changes less than this after walking = blocked by a wall
 
-# --- Placement pattern ---
-PLACE_HOLD_SEC = 0.6      # hold E this long at each spot
-PATTERN_STEP_SEC = 0.15   # W tap between spots along a side
-SIDE_STEPS_START = 40     # spots along one side for the outer ring
-RING_SHRINK_STEPS = 2     # each ring inward is this many steps shorter per side
-STALL_SPOTS_FOR_SKIP = 6  # this many spots in a row with no progress = skip ahead
-STALL_RINGS_FOR_FALL = 2  # full ring(s) with no progress = assume we fell off
+# --- Placement (lawnmower sweep, E held the whole time) ---
+PLACE_HOLD_SEC = 0.6      # hold E this long when testing if placing works (climbing)
+BUILD_TICK_SEC = 0.25     # how often the counter is checked while sweeping
+LANE_STALL_SEC = 1.5      # counter not rising this long = end of lane, turn around
+LANE_SHIFT_SEC = 0.35     # strafe this long to move over one lane (~ your place range)
+LANE_MAX_SEC = 30         # safety: never walk one lane longer than this
+DEAD_LANES_REVERSE = 2    # lanes in a row with nothing placed = march back the other way
+DEAD_LANES_LOST = 6       # this many = we're lost, walk back to the PYRAMID sign
 
 # --- Loop ---
 PICKUP_STALL_SEC = 12      # capacity not rising this long = step to a fresh spot in the pit
