@@ -79,6 +79,29 @@ class Bot:
     def pyramid_done(self):
         return self.last_counter is not None and self.last_counter[0] >= self.last_counter[1]
 
+    def at_pyramid_wall(self):
+        """Is the wall in front of us really the pyramid? Placing works from its
+        base (counter goes up), and its steps show as several stacked edges."""
+        img = self.v.grab()
+        rows = self.v.step_rows(img)
+        if C.PYRAMID_MIN_STEP_ROWS <= rows <= C.PYRAMID_MAX_STEP_ROWS:
+            log.info("wall check: %d step edges ahead, it's the pyramid", rows)
+            return True
+        before = self.counter()
+        self.c.hold("e", C.WALL_CHECK_PLACE_SEC)
+        after = self.counter()
+        if before and after and after[0] > before[0]:
+            log.info("wall check: blocks were placed, it's the pyramid")
+            return True
+        log.info("wall check: %d step edges, nothing placed: not the pyramid", rows)
+        self.v.save(img, "not_pyramid")
+        return False
+
+    def get_around(self, attempt):
+        """Back off a random wall and sidestep it (alternating sides, wider each time)."""
+        self.c.hold("s", 0.5)
+        self.c.hold("d" if attempt % 2 == 0 else "a", 0.6 + 0.4 * attempt)
+
     def walk_to_sign(self, which, arrived, stop_when_blocked=False):
         """Steer toward a sign with the arrow keys until arrived(img, pixels) is true.
         If W stops moving us (view doesn't change), we're blocked by something:
@@ -88,6 +111,7 @@ class Bot:
         searched = 0.0
         blocked = 0
         last_y = None
+        detours = 0
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
             img = self.v.grab()
@@ -106,8 +130,12 @@ class Bot:
                 for _ in range(C.NEAR_SIGN_STEPS):
                     if self.walk_step_blocked(C.WALK_STEP_SEC):
                         if stop_when_blocked:
-                            log.info("blocked by a wall right under the %s sign: arrived", which)
-                            return True
+                            if self.at_pyramid_wall():
+                                log.info("blocked by the pyramid right under the %s sign: arrived", which)
+                                return True
+                            detours += 1
+                            self.get_around(detours)
+                            continue
                         self.c.jump_forward()
                     if arrived(self.v.grab(), 0):
                         log.info("arrived at %s", which)
@@ -134,9 +162,15 @@ class Bot:
             if diff < C.BLOCKED_DIFF:
                 blocked += 1
                 if blocked >= 2:
+                    blocked = 0
                     if stop_when_blocked:
-                        log.info("blocked by a wall on the way to %s: arrived", which)
-                        return True
+                        if self.at_pyramid_wall():
+                            log.info("blocked by the pyramid wall: arrived")
+                            return True
+                        detours += 1
+                        log.info("blocked by something that isn't the pyramid: going around (%d)", detours)
+                        self.get_around(detours)
+                        continue
                     log.info("blocked on the way to %s, jumping", which)
                     self.c.jump_forward()
             else:

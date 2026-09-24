@@ -176,6 +176,29 @@ class Vision:
             return None  # lines disagree: not a clean edge
         return median
 
+    def step_rows(self, img):
+        """How many parallel near-horizontal edges are stacked in front of us.
+        The pyramid's steps give several (one per layer); a plain wall gives 1-2."""
+        import math
+        x1, y1, x2, y2 = self._scale(C.STEPS_REGION)
+        g = cv2.GaussianBlur(cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY), (5, 5), 0)
+        lines = cv2.HoughLinesP(cv2.Canny(g, 30, 90), 1, np.pi / 360, 80,
+                                minLineLength=int(150 * self.sx), maxLineGap=10)
+        if lines is None:
+            return 0
+        found = []
+        for l in lines.reshape(-1, 4):
+            ax, ay, bx, by = (int(v) for v in l)
+            a = (math.degrees(math.atan2(by - ay, bx - ax)) + 90) % 180 - 90
+            if abs(a) < 20:
+                found.append((a, (ay + by) / 2))
+        median = sorted(a for a, _ in found)[len(found) // 2] if found else 0
+        rows = []
+        for y in sorted(y for a, y in found if abs(a - median) < 3):
+            if not rows or y - rows[-1] > 10 * self.sy:
+                rows.append(y)
+        return len(rows)
+
     def screen_point(self, xy):
         return (
             self.monitor["left"] + int(xy[0] * self.sx),

@@ -42,6 +42,10 @@ TURN_180_SEC = 0.90
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.08    # sign within +-8% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
+STEPS_REGION = (480, 300, 1440, 1000)  # where to count the pyramid's stacked step edges
+PYRAMID_MIN_STEP_ROWS = 4  # this many stacked edges ahead = it's the pyramid (a wall has 1-2)
+PYRAMID_MAX_STEP_ROWS = 15 # more than this is a menu / UI, not steps
+WALL_CHECK_PLACE_SEC = 0.8 # hold E this long at a wall: counter going up = it's the pyramid
 NEAR_SIGN_STEPS = 30      # steps straight ahead after a sign goes above the screen
 PLOT_ENTER_SEC = 1.0      # walk forward this long after reaching the PYRAMID sign
 TURN_SETTLE_SEC = 0.1     # let the character turn to face forward before comparing
