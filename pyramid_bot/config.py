@@ -50,10 +50,10 @@ INDICATOR_NEAR_PX = 90    # cube this close to the character = stand still and p
 MOVE_PULSE_MAX = 0.25     # longest single key press when walking to the cube
 MOVE_PULSE_PER_PX = 0.0015  # press length per pixel of distance
 BUILD_TICK_SEC = 0.2
-SEARCH_TURN_SEC = 0.22    # camera turn per look-around step when no cube is visible
-SEARCH_TURNS = 8          # look-around steps (about a full circle) before moving
-SEARCH_STEP_SEC = 0.35    # step forward after a full look-around found nothing
-LOST_SEARCHES = 6         # full look-arounds without a cube = walk back to the pyramid
+EXPLORE_STEP_SEC = 0.2    # one exploring step when no cube is in range
+EXPLORE_LEG_STEPS = 8     # steps in the same direction before turning 90 degrees
+EXPLORE_LEG_GROW = 4      # each new leg is this many steps longer (widening spiral)
+EXPLORE_LOST_STEPS = 120  # exploring this long without a cube = walk back to the pyramid
 NEAR_STALL_SEC = 2.0      # standing at the cube but counter not rising = nudge onto it
 
 # --- Loop ---

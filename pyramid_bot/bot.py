@@ -254,15 +254,20 @@ class Bot:
     def build(self):
         """Follow the green placement cube with E held until out of blocks.
 
+        The cube only shows up when a free spot is within placing range, so:
         cube next to us   -> stand still, blocks go down
         cube further away -> walk to it (W/A/S/D by where it is on screen)
-        no cube in view   -> turn the camera to look around; if still nothing,
-                             take a small step (jumping if blocked) and look again
+        no cube           -> explore: keep going the way we were last heading
+                             (free spots usually continue along the layer edge);
+                             no luck after a while -> turn 90 and go a bit further
+                             each time (widening square spiral), jumping when blocked
         """
         log.info("building")
         self.climb()
-        searches = 0
-        turns = 0
+        heading = (0.0, -1.0)  # screen direction we last moved in (up = forward)
+        explore_steps = 0
+        leg_len = C.EXPLORE_LEG_STEPS
+        explore_total = 0
         last_n = None
         last_rise = time.time()
         ticks = 0
@@ -286,47 +291,55 @@ class Bot:
                 rising = time.time() - last_rise < 1.0
 
                 ind = self.v.find_indicator(img)
-                if ind is None:
-                    if rising:
-                        continue  # blocks are going down, stay
-                    turns += 1
-                    if turns <= C.SEARCH_TURNS:
-                        self.c.turn_right(C.SEARCH_TURN_SEC)
-                        continue
-                    turns = 0
-                    searches += 1
-                    log.info("no placement cube around, stepping forward (%d)", searches)
-                    if searches >= C.LOST_SEARCHES:
-                        log.info("lost, heading back to the pyramid")
-                        self.v.save(img, "no_cube")
-                        self.c.up("e")
-                        self.go_to_pyramid()
-                        self.climb()
-                        self.c.down("e")
-                        searches = 0
-                        continue
-                    if self.walk_step_blocked(C.SEARCH_STEP_SEC):
-                        self.c.jump_forward()
+                if ind is not None:
+                    explore_steps = 0
+                    explore_total = 0
+                    leg_len = C.EXPLORE_LEG_STEPS
+                    dx, dy = ind
+                    dist = (dx * dx + dy * dy) ** 0.5
+                    if dist < C.INDICATOR_NEAR_PX and (rising or time.time() - last_rise < C.NEAR_STALL_SEC):
+                        continue  # on the spot: let E do its work
+                    heading = (dx / max(dist, 1), dy / max(dist, 1))
+                    self.move_toward(dx, dy, dist)
                     continue
 
-                searches = 0
-                turns = 0
-                dx, dy = ind
-                dist = (dx * dx + dy * dy) ** 0.5
-                if dist < C.INDICATOR_NEAR_PX and (rising or time.time() - last_rise < C.NEAR_STALL_SEC):
-                    continue  # on the spot: let E do its work
-                self.move_toward(dx, dy, dist)
+                if rising:
+                    continue  # blocks still going down, stay
+                # --- explore ---
+                explore_steps += 1
+                explore_total += 1
+                if explore_total >= C.EXPLORE_LOST_STEPS:
+                    log.info("no free spot found for a long time, back to the pyramid")
+                    self.v.save(img, "no_cube")
+                    self.c.up("e")
+                    self.go_to_pyramid()
+                    self.climb()
+                    self.c.down("e")
+                    explore_total = 0
+                    explore_steps = 0
+                    leg_len = C.EXPLORE_LEG_STEPS
+                    continue
+                if explore_steps > leg_len:
+                    heading = (-heading[1], heading[0])  # turn 90 degrees
+                    explore_steps = 0
+                    leg_len += C.EXPLORE_LEG_GROW
+                    log.info("exploring: turning, next leg %d steps", leg_len)
+                before = self.v.scene_small(img)
+                self.move_toward(heading[0] * 200, heading[1] * 200, 200, C.EXPLORE_STEP_SEC)
+                if self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF:
+                    self.c.hold("space", C.JUMP_HOLD_SEC)  # a step in the way: hop
         finally:
             self.c.up("e")
 
-    def move_toward(self, dx, dy, dist):
+    def move_toward(self, dx, dy, dist, pulse=None):
         """Short key press toward a point on screen (up = forward)."""
         keys = []
         if abs(dy) > dist * 0.35:
             keys.append("w" if dy < 0 else "s")
         if abs(dx) > dist * 0.35:
             keys.append("d" if dx > 0 else "a")
-        pulse = min(C.MOVE_PULSE_MAX, max(0.05, dist * C.MOVE_PULSE_PER_PX))
+        if pulse is None:
+            pulse = min(C.MOVE_PULSE_MAX, max(0.05, dist * C.MOVE_PULSE_PER_PX))
         for k in keys:
             self.c.down(k)
         try:
