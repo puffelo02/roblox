@@ -78,4 +78,14 @@ class Controls:
         self.up("w")
 
     def click(self, xy):
-        pydirectinput.click(*xy)
+        """Roblox ignores a click that arrives together with the mouse move:
+        move, wiggle so it registers the hover, then press and release slowly."""
+        pydirectinput.moveTo(*xy)
+        time.sleep(0.1)
+        pydirectinput.moveRel(3, 0, relative=True)
+        time.sleep(0.05)
+        pydirectinput.moveRel(-3, 0, relative=True)
+        time.sleep(0.1)
+        pydirectinput.mouseDown()
+        time.sleep(0.1)
+        pydirectinput.mouseUp()

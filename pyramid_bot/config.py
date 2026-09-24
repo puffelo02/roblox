@@ -58,6 +58,8 @@ FULL_FALLBACK_SEC = 4      # ...for this long = treat as full
 EMPTY_BELOW = 10           # fewer blocks than this left = go refill
 JUMP_HOLD_SEC = 0.15       # Roblox misses very short taps, so hold Space a bit
 MAX_CLIMB_JUMPS = 40
+CLIMB_STEP_SEC = 0.25      # walk this long between blocked-checks while climbing
+CLIMB_FREE_STEPS = 3       # this many unblocked steps in a row = we're on the flat top
 
 # --- Hotkeys ---
 STOP_KEY = "f8"

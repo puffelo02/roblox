@@ -211,15 +211,36 @@ class Bot:
             return max(0, after[0] - before[0])
         return 0
 
+    def walk_step_blocked(self, sec):
+        """Walk forward for sec seconds; True if the view barely changed (blocked)."""
+        before = self.v.scene_small(self.v.grab())
+        self.c.hold("w", sec)
+        return self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF
+
     def climb(self):
-        """Jump forward (W + Space) until placing works, i.e. we're on the top layer."""
+        """Walk forward, jumping whenever a step blocks us. We're on top once we can
+        walk freely several steps in a row (the steps are narrow, the top is wide).
+        Placing blocks is NOT used here: from the ground the place range can reach
+        the pyramid too, which made it think it was on top."""
         log.info("climbing")
-        for i in range(C.MAX_CLIMB_JUMPS):
-            if self.place_here() > 0:
-                log.info("on top after %d jumps", i)
-                return True
-            self.c.jump_forward()
+        free = 0
+        jumps = 0
+        for _ in range(C.MAX_CLIMB_JUMPS * 2):
+            self.c.check()
+            if self.close_menu():
+                free = 0
+                continue
+            if self.walk_step_blocked(C.CLIMB_STEP_SEC):
+                free = 0
+                self.c.jump_forward()
+                jumps += 1
+            else:
+                free += 1
+                if free >= C.CLIMB_FREE_STEPS:
+                    log.info("on top after %d jumps", jumps)
+                    return True
         self.v.save(self.v.grab(), "climb_failed")
+        log.warning("climb failed")
         return False
 
     def empty(self):
@@ -283,6 +304,8 @@ class Bot:
         last_rise = time.time()
         lane_start = time.time()
         ticks = 0
+        blocked = 0
+        prev = self.v.scene_small(self.v.grab())
         self.c.down("w")
         try:
             while time.time() - lane_start < C.LANE_MAX_SEC:
@@ -292,6 +315,16 @@ class Bot:
                     self.c.down("e")
                     self.c.down("w")
                     continue
+                scene = self.v.scene_small(img)
+                if self.v.scene_diff(prev, scene) < C.BLOCKED_DIFF:
+                    blocked += 1
+                    if blocked >= 2:
+                        # a step of the next layer is in front of us: hop up
+                        self.c.hold("space", C.JUMP_HOLD_SEC)
+                        blocked = 0
+                else:
+                    blocked = 0
+                prev = scene
                 cur = self.counter(img)
                 n = cur[0] if cur else last_n
                 if n > last_n:
