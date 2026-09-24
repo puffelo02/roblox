@@ -77,10 +77,14 @@ class Bot:
     def pyramid_done(self):
         return self.last_counter is not None and self.last_counter[0] >= self.last_counter[1]
 
-    def walk_to_sign(self, which, arrived):
-        """Steer toward a sign with the arrow keys until arrived(img, pixels) is true."""
+    def walk_to_sign(self, which, arrived, stop_when_blocked=False):
+        """Steer toward a sign with the arrow keys until arrived(img, pixels) is true.
+        If W stops moving us (view doesn't change), we're blocked by something:
+        with stop_when_blocked that counts as arrived (used for the pyramid wall),
+        otherwise jump over it."""
         start = time.time()
         searched = 0.0
+        blocked = 0
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
             img = self.v.grab()
@@ -105,7 +109,19 @@ class Bot:
                 self.c.turn_left(C.STEER_TAP_SEC)
             elif offset > C.STEER_TOLERANCE:
                 self.c.turn_right(C.STEER_TAP_SEC)
+            before = self.v.scene_small(self.v.grab())
             self.c.hold("w", C.WALK_STEP_SEC)
+            diff = self.v.scene_diff(before, self.v.scene_small(self.v.grab()))
+            if diff < C.BLOCKED_DIFF:
+                blocked += 1
+                if blocked >= 2:
+                    if stop_when_blocked:
+                        log.info("blocked by a wall on the way to %s: arrived", which)
+                        return True
+                    log.info("blocked on the way to %s, jumping", which)
+                    self.c.jump_forward()
+            else:
+                blocked = 0
         self.v.save(self.v.grab(), f"timeout_{which}")
         log.warning("timed out walking to %s", which)
         return False
@@ -176,7 +192,9 @@ class Bot:
     def go_to_pyramid(self):
         log.info("-> PYRAMID")
         ok = self.walk_to_sign(
-            "pyramid", lambda img, px: px > C.PYRAMID_SIGN_ARRIVED_PIXELS * self.v.sx * self.v.sy
+            "pyramid",
+            lambda img, px: px > C.PYRAMID_SIGN_ARRIVED_PIXELS * self.v.sx * self.v.sy,
+            stop_when_blocked=True,
         )
         if ok:
             self.c.hold("w", C.PLOT_ENTER_SEC)

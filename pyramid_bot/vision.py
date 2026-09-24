@@ -98,6 +98,17 @@ class Vision:
         white = cv2.inRange(hsv, (0, 0, 220), (179, 40, 255))
         return red.mean() / 255 > 0.12 and white.mean() / 255 > 0.05
 
+    def scene_small(self, img):
+        """Tiny grayscale version of the 3D view (HUD cut out) to compare frames."""
+        g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        h, w = g.shape
+        g = g[int(h * 0.15):int(h * 0.9), int(w * 0.22):int(w * 0.88)]
+        return cv2.resize(g, (96, 54), interpolation=cv2.INTER_AREA).astype(np.float32)
+
+    @staticmethod
+    def scene_diff(a, b):
+        return float(np.mean(np.abs(a - b)))
+
     def screen_point(self, xy):
         return (
             self.monitor["left"] + int(xy[0] * self.sx),

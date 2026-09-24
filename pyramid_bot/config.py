@@ -36,7 +36,8 @@ TURN_180_SEC = 0.90
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.08    # sign within +-8% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
-PLOT_ENTER_SEC = 1.0      # walk forward this long after reaching the PYRAMID sign
+PLOT_ENTER_SEC = 1.0
+BLOCKED_DIFF = 1.0        # view changes less than this after walking = blocked by a wall      # walk forward this long after reaching the PYRAMID sign
 
 # --- Placement pattern ---
 PLACE_HOLD_SEC = 0.6      # hold E this long at each spot
