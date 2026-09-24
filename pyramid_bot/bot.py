@@ -22,18 +22,57 @@ class Bot:
         self.c = Controls()
         self.ring = 0
         self.last_counter = None
+        self.cap_max = None
+        self.cap_candidate = None
+        self.cap_votes = 0
 
     # ---------- helpers ----------
     def counter(self, img=None):
+        """Block counter, ignoring OCR glitches (wrong total, going backwards, huge jumps)."""
         img = self.v.grab() if img is None else img
         val = self.v.read_counter(img)
+        last = self.last_counter
+        if val and last:
+            new_pyramid = val[0] < 1000 and last[0] >= last[1]
+            glitch = val[1] != last[1] or val[0] < last[0] or val[0] - last[0] > 20000
+            if glitch and not new_pyramid:
+                return last
         if val:
             self.last_counter = val
-        return val
+        return val or last
 
     def capacity(self, img=None):
+        """Capacity, ignoring readings whose max doesn't match the usual max."""
         img = self.v.grab() if img is None else img
-        return self.v.read_capacity(img)
+        val = self.v.read_capacity(img)
+        if not val or val[0] > val[1]:
+            return None
+        if val[1] != self.cap_max:
+            # only trust a new max once it's been read the same way 3 times in a row
+            self.cap_votes = self.cap_votes + 1 if val[1] == self.cap_candidate else 1
+            self.cap_candidate = val[1]
+            if self.cap_votes < 3:
+                return None
+            self.cap_max = val[1]
+        return val
+
+    def close_menu(self, img=None):
+        """If the Upgrades menu popped up, click its X and step off the platform."""
+        img = self.v.grab() if img is None else img
+        if not self.v.menu_open(img):
+            return False
+        log.info("upgrades menu open, closing it")
+        self.v.save(img, "menu")
+        self.c.release_all()
+        for _ in range(5):
+            self.c.click(self.v.screen_point(C.MENU_X_CLICK))
+            self.c.sleep(0.4)
+            if not self.v.menu_open(self.v.grab()):
+                break
+        # back off the platform so it doesn't open again
+        self.c.hold("s", 0.8)
+        self.c.hold("d", 0.5)
+        return True
 
     def pyramid_done(self):
         return self.last_counter is not None and self.last_counter[0] >= self.last_counter[1]
@@ -45,6 +84,8 @@ class Bot:
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
             img = self.v.grab()
+            if self.close_menu(img):
+                continue
             offset, pixels = self.v.find_sign(img, which)
             if arrived(img, pixels):
                 log.info("arrived at %s", which)
@@ -77,19 +118,45 @@ class Bot:
         )
 
     def pick_up(self):
+        """Hold E until capacity is completely full. If it stops rising, shuffle to a new spot."""
         log.info("picking up")
-        self.c.down("e")
         start = time.time()
+        best = -1
+        last_rise = time.time()
+        shuffle = 0
+        self.c.down("e")
         try:
             while time.time() - start < C.PICKUP_TIMEOUT_SEC:
                 self.c.sleep(0.5)
-                cap = self.capacity()
-                if cap:
-                    log.info("capacity %s/%s", *cap)
-                    if cap[0] >= cap[1] * C.CAPACITY_FULL_RATIO:
-                        return True
+                img = self.v.grab()
+                if self.close_menu(img):
+                    self.go_to_blocks()
+                    self.c.down("e")
+                    last_rise = time.time()
+                    continue
+                cap = self.capacity(img)
+                if not cap:
+                    continue
+                if cap[0] >= cap[1] * C.CAPACITY_FULL_RATIO:
+                    log.info("capacity full %s/%s", *cap)
+                    return True
+                if cap[0] > best:
+                    best = cap[0]
+                    last_rise = time.time()
+                elif time.time() - last_rise > C.PICKUP_STALL_SEC:
+                    log.info("capacity stuck at %s/%s, moving a bit", *cap)
+                    self.v.save(img, "pickup_stuck")
+                    self.c.up("e")
+                    # small moves around inside the pit, cycling direction
+                    self.c.hold("wasd"[shuffle % 4], 0.3)
+                    shuffle += 1
+                    if not self.v.pickup_prompt_visible(self.v.grab()):
+                        self.go_to_blocks()
+                    self.c.down("e")
+                    last_rise = time.time()
         finally:
             self.c.up("e")
+        log.warning("pickup timed out")
         return False
 
     def go_to_pyramid(self):
@@ -105,18 +172,23 @@ class Bot:
         """Hold E at the current spot. Returns how many blocks went down."""
         before = self.counter()
         self.c.hold("e", C.PLACE_HOLD_SEC)
-        after = self.counter()
+        img = self.v.grab()
+        if self.close_menu(img):
+            return 0
+        after = self.counter(img)
         if before and after:
             return max(0, after[0] - before[0])
         return 0
 
-    def climb(self, max_jumps=12):
-        """Jump forward until placing works again (we're back on the top layer)."""
+    def climb(self):
+        """Jump forward (W + Space) until placing works, i.e. we're on the top layer."""
         log.info("climbing")
-        for _ in range(max_jumps):
+        for i in range(C.MAX_CLIMB_JUMPS):
             if self.place_here() > 0:
+                log.info("on top after %d jumps", i)
                 return True
             self.c.jump_forward()
+        self.v.save(self.v.grab(), "climb_failed")
         return False
 
     def empty(self):
@@ -148,6 +220,9 @@ class Bot:
                         return
                     if self.pyramid_done():
                         return
+                    if stalled == 3:
+                        # probably standing below a step: jump up
+                        self.c.jump_forward()
                     # skip over already filled stretches faster
                     mult = 2 if stalled >= C.STALL_SPOTS_FOR_SKIP else 1
                     self.c.hold("w", C.PATTERN_STEP_SEC * mult)
@@ -179,7 +254,8 @@ class Bot:
                     continue
                 if not self.go_to_blocks():
                     continue
-                self.pick_up()
+                if not self.pick_up():
+                    continue
                 if not self.go_to_pyramid():
                     continue
                 self.build()

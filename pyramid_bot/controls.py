@@ -72,6 +72,10 @@ class Controls:
 
     def jump_forward(self):
         self.down("w")
-        pydirectinput.press("space")
-        self.sleep(0.35)
+        self.sleep(0.05)
+        self.hold("space", C.JUMP_HOLD_SEC)
+        self.sleep(0.4)
         self.up("w")
+
+    def click(self, xy):
+        pydirectinput.click(*xy)

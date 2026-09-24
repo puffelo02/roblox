@@ -68,6 +68,21 @@ class Vision:
         text = pytesseract.image_to_string(crop, config="--psm 6").lower()
         return "block" in text or "pick" in text
 
+    def menu_open(self, img):
+        """The Upgrades menu is open if its big red X (with white cross) is there."""
+        hsv = cv2.cvtColor(self.crop(img, C.REGION_MENU_X), cv2.COLOR_BGR2HSV)
+        red = cv2.inRange(hsv, (0, 150, 150), (8, 255, 255)) | cv2.inRange(
+            hsv, (170, 150, 150), (179, 255, 255)
+        )
+        white = cv2.inRange(hsv, (0, 0, 220), (179, 40, 255))
+        return red.mean() / 255 > 0.12 and white.mean() / 255 > 0.05
+
+    def screen_point(self, xy):
+        return (
+            self.monitor["left"] + int(xy[0] * self.sx),
+            self.monitor["top"] + int(xy[1] * self.sy),
+        )
+
     # ---------- Signs ----------
     def _sign_mask(self, img, ranges):
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)

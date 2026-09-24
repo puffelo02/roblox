@@ -10,6 +10,8 @@ TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 REGION_COUNTER = (660, 5, 1350, 85)       # "909 / 171,700"
 REGION_CAPACITY = (60, 590, 420, 645)     # "Capacity: 1681/42705"
 REGION_PROMPT = (760, 760, 1150, 890)     # "E  Block  Pick Up" box
+REGION_MENU_X = (1440, 190, 1530, 265)    # red X of the Upgrades menu
+MENU_X_CLICK = (1482, 228)                # where to click to close it
 # Areas covered by the HUD, ignored when looking for the signs
 HUD_MASKS = [
     (0, 0, 1920, 160),       # top bar + robux buttons
@@ -45,9 +47,12 @@ STALL_SPOTS_FOR_SKIP = 6  # this many spots in a row with no progress = skip ahe
 STALL_RINGS_FOR_FALL = 2  # full ring(s) with no progress = assume we fell off
 
 # --- Loop ---
-PICKUP_TIMEOUT_SEC = 60
+PICKUP_STALL_SEC = 12      # capacity not rising this long = step to a fresh spot in the pit
+PICKUP_TIMEOUT_SEC = 300   # absolute safety limit
 TRAVEL_TIMEOUT_SEC = 40
-CAPACITY_FULL_RATIO = 0.98
+CAPACITY_FULL_RATIO = 0.995
+JUMP_HOLD_SEC = 0.15       # Roblox misses very short taps, so hold Space a bit
+MAX_CLIMB_JUMPS = 40
 
 # --- Hotkeys ---
 STOP_KEY = "f8"
