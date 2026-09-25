@@ -527,6 +527,13 @@ class Navigator:
                 # pyramid is where the stairs are: go that way, jumping up them
                 if front and side in ("up", "down"):
                     side = "up"  # we came up the front: the top is always ahead
+                if getattr(self, "pos_known", False):
+                    mid = self.base / 2
+                    want = {"up": self.y < mid, "down": self.y > mid,
+                            "right": self.x < mid, "left": self.x > mid}[side]
+                    if not want:
+                        side = None  # stairs on both sides: go by where the middle is
+            if side is not None:
                 key = {"up": "w", "down": "s", "left": "a", "right": "d"}[side]
                 log.info("fell off? stairs %s of us: climbing back with %s", side, key.upper())
                 self.step_jump(key, C.JUMP_HOLD_SEC + 4 * self.spb)
@@ -736,33 +743,47 @@ class Navigator:
         return off
 
     def approach_sign(self, completed):
-        """On top, sign not yet in the top view. Remember which way the sign is
-        (normal view), then walk that way looking down, until the sign shows in
-        the top view."""
-        last = self.peek_sign()
-        behind = last is None
-        log.info("on top: sign %s", "not ahead (behind us)" if behind else "ahead, offset %+.2f" % last)
-        for i in range(C.APPROACH_MAX_LOOKS * 2):
+        """On top, sign not in the top view. Normal camera: walk toward the sign
+        keeping it centred. When it passes over our head (it was high on screen,
+        now gone), look down and walk back the opposite way, toward where it was
+        last seen, until the sign shows in the top view."""
+        self.camera_normal()
+        self.c.sleep(0.15)
+        last_off, last_y, missing = 0.0, None, 0
+        for i in range(C.APPROACH_MAX_STEPS):
+            self.c.check()
+            img = self.v.grab()
+            if self.b.close_menu(img):
+                continue
+            off = self.v.find_sign(img, "pyramid")[0]
+            if off is not None:
+                last_off, last_y, missing = off, self.v.last_sign_y, 0
+                if abs(off) > C.STEER_TOLERANCE:
+                    self.c.hold("d" if off > 0 else "a", min(0.2, abs(off) * 0.6))
+                if i % C.JUMP_EVERY_MOVES == C.JUMP_EVERY_MOVES - 1:
+                    self.c.hold("space", C.JUMP_HOLD_SEC)  # now and then: hop, unsticks us
+                self.c.hold("w", 3 * self.spb)
+                continue
+            missing += 1
+            if last_y is not None and last_y < C.APPROACH_HIGH_Y:
+                log.info("on top: the sign passed over our head (last at x %+.2f)", last_off)
+                break
+            if missing >= 3:
+                log.info("on top: sign not ahead")
+                break
+            self.c.sleep(0.1)
+        # look down; if it isn't below us it's behind: walk back toward it
+        self.camera_top()
+        for i in range(C.APPROACH_BACK_STEPS):
             self.c.check()
             if self.v.sign_top(self.v.grab()) is not None:
-                log.info("on top: sign in the top view after %d steps", i)
+                log.info("on top: sign in the top view (%d steps back)", i)
                 return True
-            if i and i % 4 == 0:
-                off = self.peek_sign()  # update the direction now and then
-                if off is not None:
-                    last, behind = off, False
-                else:
-                    behind = True
-            step = C.APPROACH_STEP_BLOCKS * self.spb
             if i % C.JUMP_EVERY_MOVES == C.JUMP_EVERY_MOVES - 1:
-                self.c.hold("space", C.JUMP_HOLD_SEC)  # now and then: hop, unsticks us
-            if behind:
-                # it went over our head: back up, toward the side it was last seen on
-                self.c.hold("s", step)
-            else:
-                self.c.hold("w", step)
-            if last is not None and abs(last) > C.STEER_TOLERANCE:
-                self.c.hold("d" if last > 0 else "a", min(step, abs(last) * 8 * self.spb))
+                self.c.hold("space", C.JUMP_HOLD_SEC)
+            self.c.hold("s", 3 * self.spb)  # opposite of the way we were going
+            if abs(last_off) > C.STEER_TOLERANCE:
+                self.c.hold("d" if last_off > 0 else "a", min(3, abs(last_off) * 8) * self.spb)
         log.info("on top: sign never showed in the top view")
         return False
 

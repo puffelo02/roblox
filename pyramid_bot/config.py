@@ -207,3 +207,4 @@ BASEPLATE_SHARE = 0.75    # this much of the ground around us is grey stone = on
 EDGE_INSET_PER_BLOCK = 0.10  # outer lap: + this x layer width further from the edge (126 wide: +10)
 EDGE_LAP_PER_BLOCK = 0.12   # edge-cleanup laps likewise (126 wide: +8)
 JUMP_EVERY_MOVES = 3      # hop every this many moves while searching/centring (gets unstuck)
+APPROACH_BACK_STEPS = 12  # looking down: steps back toward a sign that went over our head
