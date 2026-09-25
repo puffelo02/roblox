@@ -190,3 +190,7 @@ APPROACH_MAX_MISSING = 6
 APPROACH_SHORT_BLOCKS = 8  # stop this many blocks before the middle (then line up from the top view)
 APPROACH_STEP_BLOCKS = 5  # on top: one step toward the sign between top-view looks
 APPROACH_MAX_LOOKS = 10
+STAIRS_AHEAD_REGION = (300, 250, 1620, 540)  # above the character's feet = in front of it
+STAIRS_MIN_LEN = 300
+STAIRS_MIN_ROWS = 2       # this many long step lines ahead = stairs, keep jumping
+CLIMB_MAX_JUMPS = 80

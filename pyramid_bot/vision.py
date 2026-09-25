@@ -203,6 +203,27 @@ class Vision:
                 rows.append(y)
         return len(rows)
 
+    def stairs_ahead(self, img):
+        """Normal camera: number of long horizontal step lines in front of (above
+        on screen) the character. 0-1 = flat ground ahead: we're on top."""
+        import math
+        x1, y1, x2, y2 = self._scale(C.STAIRS_AHEAD_REGION)
+        g = cv2.GaussianBlur(cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY), (5, 5), 0)
+        lines = cv2.HoughLinesP(cv2.Canny(g, 30, 90), 1, np.pi / 360, 80,
+                                minLineLength=int(C.STAIRS_MIN_LEN * self.sx), maxLineGap=10)
+        if lines is None:
+            return 0
+        ys = []
+        for ax, ay, bx, by in lines.reshape(-1, 4):
+            a = (math.degrees(math.atan2(by - ay, bx - ax)) + 90) % 180 - 90
+            if abs(a) < 15:
+                ys.append((ay + by) / 2)
+        rows = []
+        for y in sorted(ys):
+            if not rows or y - rows[-1] > 8 * self.sy:
+                rows.append(y)
+        return len(rows)
+
     def steps_extent(self, img):
         """Horizontal span (left, right) of the pyramid's step edges in 1080p x,
         or None if no steps are visible. The steps are long horizontal edge bands;

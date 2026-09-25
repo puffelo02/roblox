@@ -409,6 +409,26 @@ class Navigator:
         self.jumps = jumps
         return since_wall
 
+    def climb_to_top(self):
+        """Screenshot; stairs or an obstacle in front: jump up. Nothing in front:
+        we're on top, stop."""
+        for jumps in range(C.CLIMB_MAX_JUMPS):
+            self.c.check()
+            img = self.v.grab()
+            if self.b.close_menu(img):
+                continue
+            rows = self.v.stairs_ahead(img)
+            if rows >= C.STAIRS_MIN_ROWS:
+                self.c.jump_forward(0.25)
+                continue
+            if self.b.walk_step_blocked(0.1):
+                self.c.jump_forward(0.25)  # something in the way
+                continue
+            log.info("on top: no stairs or obstacle ahead (%d jumps)", jumps)
+            return True
+        log.warning("still stairs ahead after %d jumps", C.CLIMB_MAX_JUMPS)
+        return False
+
     def check_walkspeed(self):
         """Time per block depends on Walk Speed: rescale if it changed."""
         ws = None
@@ -686,10 +706,11 @@ class Navigator:
         self.check_walkspeed()
         self.completed = completed
         self.align()
-        self.climb_layers(completed)
+        self.climb_to_top()
         self.heading = 0
-        self.approach_sign(completed)  # normal camera: part way toward the sign
         self.camera_top()
+        if self.v.sign_top(self.v.grab()) is None:
+            self.approach_sign(completed)  # sign not in view yet: short steps toward it
         self.top_align()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
