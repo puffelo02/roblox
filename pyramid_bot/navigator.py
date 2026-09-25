@@ -543,6 +543,7 @@ class Navigator:
             self.x = self.y = self.base / 2
         if centred:
             self.pos_known = True  # the sign confirmed it
+            self.top_align()  # square the camera for a straight spiral
         else:
             log.info("couldn't confirm the middle with the sign")
         return centred
@@ -724,7 +725,7 @@ class Navigator:
         self.c.sleep(0.15)
         if self.v.find_sign(self.v.grab(), "pyramid")[0] is None:
             log.info("on top: sign not ahead, turning to find it")
-            self.b.face_sign("pyramid")
+            self.b.face_sign("pyramid", strict=True)  # only stop turning on the real sign
         last_off, last_y, missing = 0.0, None, 0
         for i in range(C.APPROACH_MAX_STEPS):
             self.c.check()

@@ -152,7 +152,7 @@ class Bot:
                 return True
         return True
 
-    def face_sign(self, which, max_turns=1.0):
+    def face_sign(self, which, max_turns=1.0, strict=False):
         """Turn the camera (standing still) until the sign is in view. True if found."""
         step = C.TURN_90_SEC / 4
         turned = 0.0
@@ -164,7 +164,7 @@ class Bot:
             off = self.v.find_sign(img, which)[0]
             if off is not None and which == "pyramid":
                 self.saw_pyramid_sign = True
-            if off is None and which == "pyramid" and self.pyramid_ahead(img):
+            if off is None and which == "pyramid" and not strict and self.pyramid_ahead(img):
                 return True  # staircase right ahead, sign hidden behind the UI
             if off is not None:
                 if abs(off) < C.FACE_SIGN_OK:

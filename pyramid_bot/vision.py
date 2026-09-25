@@ -324,6 +324,27 @@ class Vision:
                 best = (dx, dy, d)
         return None if best is None else (best[0], best[1])
 
+    def _side_edges_angle(self, lines):
+        """No horizontal edge in view: use the pyramid's left and right edges.
+        Seen from above with perspective they lean by the same amount in
+        opposite directions when the camera is square; the average lean is the
+        camera's turn."""
+        import math
+        cx = C.CHAR_POS[0] * self.sx
+        left, right = [], []
+        for x1, y1, x2, y2 in lines.reshape(-1, 4):
+            a = math.degrees(math.atan2(x2 - x1, y2 - y1))  # lean from vertical
+            a = (a + 90) % 180 - 90
+            if abs(a) > 30:
+                continue
+            ln = math.hypot(x2 - x1, y2 - y1)
+            (left if (x1 + x2) / 2 < cx else right).append((a, ln))
+        if not left or not right:
+            return None
+        la = max(left, key=lambda t: t[1])[0]
+        ra = max(right, key=lambda t: t[1])[0]
+        return -(la + ra) / 2
+
     def top_angle(self, img):
         """Top-down view: tilt (degrees) of the pyramid's horizontal edge lines on
         screen. 0 = camera square to the pyramid. None if no long line is seen.
@@ -346,7 +367,7 @@ class Vision:
                 angs.append(a)
                 ws.append(math.hypot(x2 - x1, y2 - y1))
         if not angs:
-            return None
+            return self._side_edges_angle(lines)
         order = np.argsort(angs)
         a, w = np.array(angs)[order], np.array(ws)[order]
         cum = np.cumsum(w)
