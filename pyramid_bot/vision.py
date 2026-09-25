@@ -251,29 +251,57 @@ class Vision:
         m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8)) > 0
         cx, cy = C.CHAR_POS
         band = C.STRIP_BAND
+        skip = C.STRIP_SKIP_PX
+
+        def nearest(profile_1d, center, scale):
+            """Inner edge of the nearest strip on each side of center (1080p px)."""
+            idx = np.flatnonzero(profile_1d)
+            lo = idx[idx < center - int(skip * scale)]
+            hi = idx[idx > center + int(skip * scale)]
+            ok = C.STRIP_MIN_PX * scale
+            return (lo.max() / scale if len(lo) >= ok else None,
+                    hi.min() / scale if len(hi) >= ok else None)
+
+        def consistent(vals):
+            """A real pyramid edge is a long line: it must show up in at least two
+            of the three bands, at about the same place (the jagged outline of a
+            half-built layer doesn't)."""
+            vals = [v for v in vals if v is not None]
+            if len(vals) < 2:
+                return None
+            vals.sort()
+            for i in range(len(vals) - 1):
+                if vals[i + 1] - vals[i] < C.STRIP_AGREE_PX:
+                    return (vals[i] + vals[i + 1]) / 2
+            return None
+
         found = {}
-        # vertical strips: look along the character's row band
-        y1, y2 = int((cy - band) * self.sy), int((cy + band) * self.sy)
-        cols = m[y1:y2].mean(axis=0) > C.STRIP_FILL
-        xs = np.flatnonzero(cols)
-        c = int(cx * self.sx)
-        left = xs[xs < c - int(60 * self.sx)]
-        right = xs[xs > c + int(60 * self.sx)]
-        if len(left) >= C.STRIP_MIN_PX * self.sx:
-            found["left"] = left.max() / self.sx
-        if len(right) >= C.STRIP_MIN_PX * self.sx:
-            found["right"] = right.min() / self.sx
-        # horizontal strips: along the character's column band
-        x1, x2 = int((cx - band) * self.sx), int((cx + band) * self.sx)
-        rows = m[:, x1:x2].mean(axis=1) > C.STRIP_FILL
-        ys = np.flatnonzero(rows)
-        r = int(cy * self.sy)
-        top = ys[ys < r - int(60 * self.sy)]
-        bottom = ys[ys > r + int(60 * self.sy)]
-        if len(top) >= C.STRIP_MIN_PX * self.sy:
-            found["top"] = top.max() / self.sy
-        if len(bottom) >= C.STRIP_MIN_PX * self.sy:
-            found["bottom"] = bottom.min() / self.sy
+        # vertical strips: rows above, level with and below the character
+        lefts, rights = [], []
+        for off in (-C.STRIP_BAND_GAP, 0, C.STRIP_BAND_GAP):
+            y1 = int((cy + off - band) * self.sy)
+            y2 = int((cy + off + band) * self.sy)
+            if y1 < 0 or y2 > m.shape[0]:
+                continue
+            l, r = nearest(m[y1:y2].mean(axis=0) > C.STRIP_FILL, int(cx * self.sx), self.sx)
+            lefts.append(l)
+            rights.append(r)
+        for side, vals in (("left", lefts), ("right", rights)):
+            v = consistent(vals)
+            if v is not None:
+                found[side] = v
+        # horizontal strips: columns left of, at and right of the character
+        tops, bottoms = [], []
+        for off in (-C.STRIP_BAND_GAP, 0, C.STRIP_BAND_GAP):
+            x1 = int((cx + off - band) * self.sx)
+            x2 = int((cx + off + band) * self.sx)
+            t, b2 = nearest(m[:, x1:x2].mean(axis=1) > C.STRIP_FILL, int(cy * self.sy), self.sy)
+            tops.append(t)
+            bottoms.append(b2)
+        for side, vals in (("top", tops), ("bottom", bottoms)):
+            v = consistent(vals)
+            if v is not None:
+                found[side] = v
         return found
 
     def screen_point(self, xy):

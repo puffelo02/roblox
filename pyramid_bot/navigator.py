@@ -154,6 +154,23 @@ class Navigator:
                 out[side] = pos
         return out
 
+    def find_edges_from_above(self):
+        """Get one edge per axis close enough to measure: bottom (we came up that
+        side) for y, then walk right until the right edge shows for x."""
+        step = 0.25 * self.speed_factor
+        got = set()
+        for key, side, axis in (("s", "bottom", "y"), ("d", "right", "x")):
+            for _ in range(C.CORNER_WALK_MAX_STEPS):
+                self.c.check()
+                near = self.near_strips()
+                if side in near or (axis == "y" and "top" in near) or \
+                        (axis == "x" and "left" in near):
+                    got.add(axis)
+                    break
+                self.c.hold(key, step)
+        self.locate(self.completed)
+        return len(got)
+
     def go_to_corner_from_above(self):
         """Walk left until the left edge is close, then down until the bottom edge
         is close: the L of the bottom-left corner."""
@@ -421,9 +438,9 @@ class Navigator:
         self.camera_top()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
-        # walk to the bottom-left corner looking down, then measure there
-        self.go_to_corner_from_above()
-        axes = self.locate(completed)
+        # we came up the bottom side: its edge gives y; walk right until the
+        # right edge is close for x. Then head for the middle.
+        axes = self.find_edges_from_above()
         if axes == 0:
             log.warning("no pyramid edge seen from above")
             self.camera_normal()
@@ -514,7 +531,7 @@ class Navigator:
         log.info("no edge in view to fix the position, carrying on")
         return None
 
-    def walk_to(self, tx, ty, state):
+    def walk_to(self, tx, ty, state, check_lost=True):
         """Move to (tx, ty). On top the camera looks straight down and is never
         turned, so screen directions are pyramid directions: W = +y (up on
         screen), S = -y, D = +x, A = -x. Position is re-measured after each leg."""
@@ -524,7 +541,7 @@ class Navigator:
         if abs(ty - self.y) > 0.3:
             moves.append(("w" if ty > self.y else "s", abs(ty - self.y), "y", ty))
         for key, dist, axis, target in moves:
-            status = self.walk(dist, state, key=key)
+            status = self.walk(dist, state, check_lost=check_lost, key=key)
             if status:
                 return status
             if axis == "x":
@@ -556,6 +573,7 @@ class Navigator:
         outward_done = False
         edge_fixed = set()  # layers we re-anchored for before the edge laps
         edge_walked = set()  # layers whose edge laps are done
+        lost_restarts = 0
         try:
             while True:
                 cur = self.b.counter() or self.b.last_counter
@@ -577,7 +595,18 @@ class Navigator:
                     if not spiral:
                         edge_fixed.add(completed)
                 if spiral:
-                    path, kind = G.pick_path((self.x, self.y), lo, hi, C.LANE_BLOCKS, C.EDGE_INSET)
+                    # start from the middle and spiral outward (your method)
+                    mid = (lo + hi) / 2
+                    status = self.walk_to(mid, mid, state, check_lost=False)
+                    if status:
+                        return status
+                    path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, C.EDGE_INSET)
+                    # the middle fills first: skip laps inside the part already built
+                    r0 = (1 - left) ** 0.5 * side / 2 - C.LANE_BLOCKS
+                    if kind == "outward" and r0 > 0:
+                        rest = [p for p in path if max(abs(p[0] - mid), abs(p[1] - mid)) >= r0]
+                        if rest:
+                            path = rest
                     log.info("layer %d (%dx%d, %d%% done): spiral %s from (%.0f, %.0f)",
                              completed + 1, side, side, 100 - left * 100, kind, *path[0])
                     outward_done = kind == "outward"
@@ -595,12 +624,25 @@ class Navigator:
                     self.b.build(max_sec=C.CLEANUP_SEC, climb_first=False)
                     return "lost"  # position unknown now: re-anchor on the next trip
                 state["layer"] = completed
-                for tx, ty in path:
-                    status = self.walk_to(tx, ty, state)
+                for i, (tx, ty) in enumerate(path):
+                    # the first leg crosses the finished middle: nothing to place there
+                    status = self.walk_to(tx, ty, state, check_lost=i > 0)
+                    if i == 0:
+                        state["last_rise"] = state["last_cube"] = time.time()
+                    if status == "lost" and self.top_view and lost_restarts < C.MAX_MIDDLE_RESTARTS:
+                        # confused or at an edge: look again and start over from the middle
+                        lost_restarts += 1
+                        log.info("nothing placed for a while: back to the middle (%d)", lost_restarts)
+                        self.locate(self.completed)
+                        now = time.time()
+                        state["last_rise"] = state["last_cube"] = now
+                        passes[completed] = 0
+                        break
                     if status == "layer":
                         # next layer: hop up onto it and plan a new, smaller spiral
                         self.c.hold("space", C.JUMP_HOLD_SEC)
                         outward_done = False
+                        lost_restarts = 0
                         break
                     if status:
                         return status
