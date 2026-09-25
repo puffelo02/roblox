@@ -83,6 +83,10 @@ class Bot:
         """Is the wall in front of us really the pyramid? Placing works from its
         base (counter goes up), and its steps show as several stacked edges."""
         img = self.v.grab()
+        if self.v.pyramid_sign_far(img):
+            # the PYRAMID sign still small and far ahead: this is something else
+            log.info("wall check: pyramid sign still far ahead: not the pyramid")
+            return False
         rows = self.v.step_rows(img)
         if C.PYRAMID_MIN_STEP_ROWS <= rows <= C.PYRAMID_MAX_STEP_ROWS:
             log.info("wall check: %d step edges ahead, it's the pyramid", rows)
@@ -98,7 +102,11 @@ class Bot:
         return False
 
     def get_around(self, attempt):
-        """Back off a random wall and sidestep it (alternating sides, wider each time)."""
+        """First try jumping over it (a sand block); then back off and sidestep
+        (alternating sides, wider each time)."""
+        if attempt == 1:
+            self.c.jump_forward()
+            return
         self.c.hold("s", 0.5)
         self.c.hold("d" if attempt % 2 == 0 else "a", 0.6 + 0.4 * attempt)
 

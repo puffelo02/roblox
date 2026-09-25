@@ -43,7 +43,7 @@ PYRAMID_SIGN_ARRIVED_PIXELS = 8000  # sign this big on screen = we're at the plo
 TURN_90_SEC = 0.45        # how long to hold an arrow key to turn the camera 90 degrees
 TURN_180_SEC = 0.90
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
-STEER_TOLERANCE = 0.08    # sign within +-8% of screen center = go straight
+STEER_TOLERANCE = 0.03    # sign within +-3% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
 STEPS_REGION = (480, 300, 1440, 1000)  # where to count the pyramid's stacked step edges
 PYRAMID_MIN_STEP_ROWS = 4  # this many stacked edges ahead = it's the pyramid (a wall has 1-2)
@@ -169,3 +169,6 @@ SIGN_TRUST_PX = 330       # only fix the position from the sign when it's this c
 CUBE_TOP_MIN_AREA = 25    # px: the green cube looks small from above
 CUBE_TOP_UNDER_PX = 18   # a cube this close is the one under our feet
 ARRIVE_BLOCKS = 0.5       # a leg is done this close to its end (seen from the sign)
+WALL_SIGN_FAR_PX = 1500   # pyramid sign smaller than this (and low on screen) = still far away
+WALL_SIGN_FAR_Y = 150
+MIDDLE_BLIND_STEPS = 6    # walk ahead this many times when neither sign nor edge is in view

@@ -417,6 +417,23 @@ class Vision:
         half = img.shape[1] / 2
         return (float(best[0]) - half) / half, best[1]
 
+    def pyramid_sign_far(self, img):
+        """A tiny PYRAMID sign high up near the middle of the screen = the pyramid
+        is still far ahead (whatever blocks us isn't it)."""
+        mask = self._sign_mask(img, C.GREEN_RANGES)
+        mask[int(C.SIGN_MAX_Y * self.sy):, :] = 0
+        mask[:int(160 * self.sy), :] = 0  # the +1,000 buttons
+        joined = cv2.dilate(mask, np.ones((5, 15), np.uint8))
+        n, _, stats, _ = cv2.connectedComponentsWithStats(joined)
+        mid = img.shape[1] / 2
+        for i in range(1, n):
+            x, y, w, h = stats[i][:4]
+            px = cv2.countNonZero(mask[y:y + h, x:x + w])
+            if h and w / h >= C.SIGN_MIN_ASPECT and 10 * self.sx * self.sy <= px \
+                    < C.WALL_SIGN_FAR_PX * self.sx * self.sy and abs(x + w / 2 - mid) < 500 * self.sx:
+                return True
+        return False
+
     # ---------- Debug ----------
     def save(self, img, tag):
         if C.SAVE_SCREENSHOTS:
