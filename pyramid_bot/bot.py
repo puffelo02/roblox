@@ -296,6 +296,11 @@ class Bot:
             else:
                 blocked = 0
         self.v.save(self.v.grab(), f"timeout_{which}")
+        if which == "pyramid" and getattr(self, "saw_pyramid_sign", False):
+            # we've been walking at the sign all along: we're at (or on) the
+            # pyramid, just not "arrived" by the usual signs. Climb from here
+            log.info("walked toward the pyramid sign for a while: climbing from here")
+            return True
         log.warning("timed out walking to %s", which)
         return False
 
@@ -312,12 +317,12 @@ class Bot:
         return False
 
     def go_to_blocks(self):
-        log.info("-> BLOCKS (capacity empty: refilling)")
+        log.info("-> BLOCKS (refilling)")
         self.nav.reset_camera()
         if not self.v.pickup_prompt_visible(self.v.grab()):
             self.find_sign_any_pitch("blocks")  # find the red BLOCKS sign, standing still
         return self.walk_to_sign(
-            "blocks", lambda img, px: self.v.pickup_prompt_visible(img)
+            "blocks", lambda img, px: self.v.pickup_prompt_visible(img), strafe=True
         )
 
     def pick_up(self):
@@ -582,10 +587,20 @@ class Bot:
                 if self.pyramid_done():
                     self.wait_for_new_pyramid()
                     continue
-                if not self.go_to_blocks():
-                    continue
-                if not self.pick_up():
-                    continue
+                cap = None
+                for _ in range(4):  # a few reads: the first ones may not be trusted yet
+                    cap = self.capacity()
+                    if cap is not None:
+                        break
+                    self.c.sleep(0.2)
+                if cap is None or cap[0] < C.EMPTY_BELOW:
+                    # out of blocks (or can't tell): refill first
+                    if not self.go_to_blocks():
+                        continue
+                    if not self.pick_up():
+                        continue
+                else:
+                    log.info("still carrying %s/%s blocks: straight back to the pyramid", *cap)
                 if not self.go_to_pyramid():
                     continue
                 self.build_pyramid()
