@@ -82,6 +82,17 @@ class Vision:
     def read_counter(self, img):
         return self._read_pair(img, C.REGION_COUNTER)
 
+    def cooldown_visible(self, img):
+        """Pyramid finished: the progress bar shows a countdown like '2:39'
+        instead of 'blocks / total'."""
+        crop = self.crop(img, C.REGION_COUNTER)
+        for prepared in (self._white_text(crop), self._bright_text(crop)):
+            text = pytesseract.image_to_string(
+                prepared, config="--psm 7 -c tessedit_char_whitelist=0123456789:/").replace(" ", "")
+            if "/" not in text and re.search(r"\d{1,2}:\d{2}", text):
+                return True
+        return False
+
     def read_capacity(self, img):
         return self._read_pair(img, C.REGION_CAPACITY)
 

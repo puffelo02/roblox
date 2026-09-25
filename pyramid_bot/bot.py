@@ -41,6 +41,11 @@ class Bot:
                 return last
         if val:
             self.last_counter = val
+        elif last and last[0] < last[1] and self.v.cooldown_visible(img):
+            # countdown instead of numbers: the pyramid is finished
+            log.info("progress bar shows the reset countdown: pyramid finished")
+            self.last_counter = (last[1], last[1])
+            return self.last_counter
         return val or last
 
     def capacity(self, img=None):
