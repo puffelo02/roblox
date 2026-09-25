@@ -187,3 +187,4 @@ APPROACH_MAX_STEPS = 60   # on top: walking steps toward the sign at most
 APPROACH_STEP_SEC = 0.15  # one step (normal camera)
 APPROACH_HIGH_Y = 260     # sign seen above this line = close; then it leaves the screen
 APPROACH_MAX_MISSING = 6
+APPROACH_SHORT_BLOCKS = 8  # stop this many blocks before the middle (then line up from the top view)
