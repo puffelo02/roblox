@@ -515,6 +515,8 @@ class Vision:
                 best = (cents[i][0], px, cents[i][1] / self.sy)
         if best is None and which == "pyramid":
             best = self._far_pyramid_sign(img)
+        if best is None and which == "blocks":
+            best = self._far_blocks_sign(img)
         if best is None:
             return None, 0
         self.last_sign_y = best[2]  # height on screen (1080p), used to tell "right under it"
@@ -537,6 +539,29 @@ class Vision:
             if not (C.FAR_SIGN_W[0] * self.sx <= w <= C.FAR_SIGN_W[1] * self.sx):
                 continue
             if w / max(h, 1) < 3.5:
+                continue
+            px = int(cv2.countNonZero(m[y:y + h, x:x + w]))
+            if px < C.FAR_SIGN_MIN_PIXELS * self.sx * self.sy:
+                continue
+            if best is None or px > best[1]:
+                best = (cen[i][0], px, cen[i][1] / self.sy)
+        return best
+
+    def _far_blocks_sign(self, img):
+        """The red BLOCKS sign from far away / from high up (e.g. on top of the
+        pyramid it shows small and below the horizon)."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        m = cv2.inRange(hsv, (0, 175, 90), (8, 255, 255)) | cv2.inRange(hsv, (172, 175, 90), (179, 255, 255))
+        m[:int(160 * self.sy), :] = 0                     # +10,000 buttons etc.
+        m[int(C.FAR_BLOCKS_MAX_Y * self.sy):, :] = 0
+        for x1, y1, x2, y2 in C.STRIP_HUD_MASKS:
+            m[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)] = 0
+        joined = cv2.dilate(m, np.ones((3, 9), np.uint8))
+        n, _, st, cen = cv2.connectedComponentsWithStats(joined)
+        best = None
+        for i in range(1, n):
+            x, y, w, h = st[i][:4]
+            if not (C.FAR_SIGN_W[0] * self.sx <= w <= C.FAR_SIGN_W[1] * self.sx) or w / max(h, 1) < 3.5:
                 continue
             px = int(cv2.countNonZero(m[y:y + h, x:x + w]))
             if px < C.FAR_SIGN_MIN_PIXELS * self.sx * self.sy:

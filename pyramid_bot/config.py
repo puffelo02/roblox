@@ -195,7 +195,7 @@ STAIRS_MIN_LEN = 300
 STAIRS_MIN_ROWS = 2       # this many long step lines ahead = stairs, keep jumping
 CLIMB_MAX_JUMPS = 80
 STAIRS_TOP_MIN_LINES = 5  # top view: this many stair lines on one side = the pyramid is that way
-PITCH_SEARCH_TRIES = 4    # tilt the camera up this many times looking for a sign
+PITCH_SEARCH_TRIES = 1    # tilt the camera up this many times looking for a sign
 PITCH_SEARCH_PX = 120     # right-drag per tilt step
 CLIMB_TEST_STEP_SEC = 0.25  # walk test while climbing: on stairs this always hits the next step
 MIDDLE_GAIN = 0.6         # move this share of the way to the A per step (no overshooting)
@@ -210,3 +210,4 @@ JUMP_EVERY_MOVES = 3      # hop every this many moves while searching/centring (
 APPROACH_BACK_STEPS = 12  # looking down: steps back toward a sign that went over our head
 LOST_SEC_LATE = 20        # late in a layer (edge laps / cleanup): nothing placed this long = fell off
 CUBE_TOP_HSV = ((37, 60, 90), (62, 255, 255))  # top view: the cube (cacti are a duller hue ~36)
+FAR_BLOCKS_MAX_Y = 900     # the far BLOCKS sign can be low on screen when seen from high up
