@@ -139,8 +139,10 @@ class Bot:
 
     def pyramid_ahead(self, img):
         """The pyramid's big staircase right in front of us (the sign itself may
-        be hidden behind the counter bar up top)."""
-        return self.v.stairs_ahead(img) >= C.PYRAMID_AHEAD_ROWS
+        be hidden behind the counter bar up top). Only once the PYRAMID sign has
+        been seen on this trip: the BLOCKS pit and gym gear have lines too."""
+        return getattr(self, "saw_pyramid_sign", False) and \
+            self.v.stairs_ahead(img) >= C.PYRAMID_AHEAD_ROWS
 
     def walk_into_pyramid(self):
         """Walk forward until the pyramid's wall stops us."""
@@ -160,6 +162,8 @@ class Bot:
             if self.close_menu(img):
                 continue
             off = self.v.find_sign(img, which)[0]
+            if off is not None and which == "pyramid":
+                self.saw_pyramid_sign = True
             if off is None and which == "pyramid" and self.pyramid_ahead(img):
                 return True  # staircase right ahead, sign hidden behind the UI
             if off is not None:
@@ -194,9 +198,11 @@ class Bot:
             if self.close_menu(img):
                 continue
             offset, pixels = self.v.find_sign(img, which)
+            if which == "pyramid" and offset is not None:
+                self.saw_pyramid_sign = True
             if which == "pyramid" and offset is None and self.pyramid_ahead(img):
                 return self.walk_into_pyramid()
-            if which == "pyramid" and self.v.on_baseplate(img):
+            if which == "pyramid" and self.saw_pyramid_sign and self.v.on_baseplate(img):
                 log.info("standing on the pyramid's baseplate: arrived")
                 return True
             if arrived(img, pixels):
@@ -372,6 +378,7 @@ class Bot:
 
     def go_to_pyramid(self):
         log.info("-> PYRAMID")
+        self.saw_pyramid_sign = False
         self.nav.reset_camera()
         self.find_sign_any_pitch("pyramid")  # find the word first, standing still
         ok = self.walk_to_sign(

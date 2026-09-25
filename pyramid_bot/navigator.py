@@ -738,7 +738,12 @@ class Navigator:
             if self.b.close_menu(img):
                 continue
             off, _px = self.v.find_sign(img, "pyramid")
-            if off is not None and abs(off) > C.STEER_TOLERANCE:
+            if off is None:
+                # not ahead: it's overhead or behind us. Step back and look again
+                log.info("on top: sign not ahead, stepping back")
+                self.c.hold("s", C.APPROACH_STEP_BLOCKS * self.spb)
+                continue
+            if abs(off) > C.STEER_TOLERANCE:
                 self.c.hold("a" if off < 0 else "d", min(0.2, abs(off) * 0.6))
             before = self.v.scene_small(self.v.grab())
             self.c.hold("w", C.APPROACH_STEP_BLOCKS * self.spb)  # one short, exact step
