@@ -662,7 +662,7 @@ class Navigator:
             # nothing in view: next point along a lap near the edges
             tx, ty = laps[li % len(laps)]
             li += 1
-            status = self.walk_to(tx, ty, state, check_lost=False)
+            status = self.walk_to(tx, ty, state, check_lost=False, watch_edge=True)
             if status in ("empty", "done", "layer"):
                 return status
         log.info("couldn't finish the layer's last blocks")
@@ -754,6 +754,8 @@ class Navigator:
                 else:
                     behind = True
             step = C.APPROACH_STEP_BLOCKS * self.spb
+            if i % C.JUMP_EVERY_MOVES == C.JUMP_EVERY_MOVES - 1:
+                self.c.hold("space", C.JUMP_HOLD_SEC)  # now and then: hop, unsticks us
             if behind:
                 # it went over our head: back up, toward the side it was last seen on
                 self.c.hold("s", step)
@@ -769,6 +771,9 @@ class Navigator:
         didn't move at all (a block in the way). Plain sand from above looks the
         same everywhere, so the picture itself can't tell us we're stuck."""
         before = self.v.sign_top(self.v.grab())
+        self.moves = getattr(self, "moves", 0) + 1
+        if self.moves % C.JUMP_EVERY_MOVES == 0:
+            self.c.hold("space", C.JUMP_HOLD_SEC)  # now and then: hop, unsticks us
         self.c.hold(key, sec)
         self.c.sleep(0.15)
         after = self.v.sign_top(self.v.grab())
@@ -926,7 +931,7 @@ class Navigator:
         log.info("no edge in view to fix the position, carrying on")
         return None
 
-    def walk_to(self, tx, ty, state, check_lost=True):
+    def walk_to(self, tx, ty, state, check_lost=True, watch_edge=None):
         """Move to (tx, ty). On top the camera looks straight down and is never
         turned, so screen directions are pyramid directions: W = +y (up on
         screen), S = -y, D = +x, A = -x. Returns "edge" if an edge is right next to us."""
@@ -948,7 +953,8 @@ class Navigator:
             near_edge = min(target - lo, hi - target) < self.spiral_inset(hi - lo) + C.EDGE_WATCH_BLOCKS
             start = self.x if axis == "x" else self.y
             status = self.walk(dist * self.leg_scale(key), state, check_lost=check_lost, key=key,
-                               edge_stop=check_lost and self.top_view and near_edge,
+                               edge_stop=(check_lost if watch_edge is None else watch_edge)
+                               and self.top_view and near_edge,
                                goal=(axis, target))
             if status:
                 return status
@@ -1016,7 +1022,7 @@ class Navigator:
                     path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, self.spiral_inset(hi - lo) + shift)
                     # the middle fills first: skip laps inside the part already built
                     r0 = (1 - left) ** 0.5 * side / 2 - C.LANE_BLOCKS
-                    if kind == "outward" and r0 > 0 and tries == 0:
+                    if kind == "outward" and r0 > 0:
                         rest = [p for p in path if max(abs(p[0] - mid), abs(p[1] - mid)) >= r0]
                         if rest:
                             path = rest
@@ -1043,7 +1049,8 @@ class Navigator:
                 state["layer"] = completed
                 for i, (tx, ty) in enumerate(path):
                     # the first leg crosses the finished middle: nothing to place there
-                    status = self.walk_to(tx, ty, state, check_lost=i > 0 and spiral)
+                    status = self.walk_to(tx, ty, state, check_lost=i > 0 and spiral,
+                                          watch_edge=i > 0)
                     if i == 0:
                         state["last_rise"] = state["last_cube"] = time.time()
                     if status in ("lost", "edge") and self.top_view and lost_restarts < C.MAX_MIDDLE_RESTARTS:
