@@ -179,18 +179,28 @@ class Navigator:
         blocks (0 = left corner), or None. Walks back to the wall afterwards."""
         backed = 0.0
         x = None
-        for _ in range(C.OVERVIEW_MAX_BACKUPS):
+        prev = None
+        for i in range(C.OVERVIEW_MAX_BACKUPS):
             self.c.check()
-            img = self.v.grab()
-            span = self.v.steps_extent(img)
-            lo, hi = C.CORNER_VISIBLE
-            if span and lo < span[0] and span[1] < hi and span[1] - span[0] > 200:
-                frac = (C.CHAR_POS[0] - span[0]) / (span[1] - span[0])
-                x = frac * self.base
-                log.info("overview: side spans x=%d..%d on screen, we're at %.0f%% = block %.1f",
-                         span[0], span[1], frac * 100, x)
-                self.v.save(img, "overview")
-                break
+            if i >= C.OVERVIEW_MIN_BACKUPS:
+                img = self.v.grab()
+                span = self.v.steps_extent(img)
+                lo, hi = C.CORNER_VISIBLE
+                ok = (span and lo + 40 < span[0] and span[1] < hi - 40
+                      and span[1] - span[0] > 200)
+                if ok:
+                    frac = (C.CHAR_POS[0] - span[0]) / (span[1] - span[0])
+                    log.info("overview try %d: side spans x=%d..%d, we're at %.0f%%",
+                             i, span[0], span[1], frac * 100)
+                    self.v.save(img, "overview")
+                    # two pictures in a row must agree before we trust it
+                    if prev is not None and abs(frac - prev) < 0.05:
+                        x = (frac + prev) / 2 * self.base
+                        log.info("overview agreed: block %.1f of %d", x, self.base)
+                        break
+                    prev = frac
+                else:
+                    prev = None
             self.c.hold("s", C.OVERVIEW_BACKUP_SEC * self.speed_factor)
             backed += C.OVERVIEW_BACKUP_SEC * self.speed_factor
         # back to the base wall
