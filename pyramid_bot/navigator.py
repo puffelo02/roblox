@@ -518,7 +518,10 @@ class Navigator:
                 no_sign = 0
                 continue
             no_sign += 1
-            side = self.v.stairs_side_top(img) if no_sign >= C.FELL_OFF_CHECKS else None
+            if no_sign < C.FELL_OFF_CHECKS:
+                self.c.sleep(0.2)  # the sign may just flicker: look again first
+                continue
+            side = self.v.stairs_side_top(img)
             if side is not None:
                 # no sign in view but stairs next to us: we fell off. The
                 # pyramid is where the stairs are: go that way, jumping up them
@@ -587,7 +590,7 @@ class Navigator:
             self.pos_known = True  # the sign confirmed it
         else:
             log.info("couldn't confirm the middle with the sign")
-        return True
+        return centred
 
     def sign_pos(self, img):
         """Our (x, y) on the layer from the sign's spot on screen, or None."""
@@ -982,7 +985,13 @@ class Navigator:
                 if spiral:
                     # start from the middle and spiral outward (your method)
                     mid = (lo + hi) / 2
-                    self.go_middle(completed)
+                    if not self.go_middle(completed):
+                        # fell off / lost: walk back to the pyramid and climb it again
+                        log.info("lost the pyramid: walking back to it and climbing up again")
+                        self.c.up("e")
+                        if not self.b.go_to_pyramid() or not self.anchor(completed):
+                            return "lost"
+                        self.c.down("e")
                     # 2nd pass: laps shifted half a lane, over the strips the 1st one missed
                     shift = (C.LANE_BLOCKS / 2) if tries % 2 else 0
                     path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, self.spiral_inset(hi - lo) + shift)
