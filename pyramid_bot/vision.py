@@ -313,6 +313,9 @@ class Vision:
             area = stats[i][cv2.CC_STAT_AREA] / (self.sx * self.sy)
             if not (C.CUBE_TOP_MIN_AREA <= area <= C.INDICATOR_MAX_AREA):
                 continue
+            bw, bh = stats[i][cv2.CC_STAT_WIDTH], stats[i][cv2.CC_STAT_HEIGHT]
+            if not (0.6 <= bw / max(bh, 1) <= 1.7) or area < 0.45 * bw * bh / (self.sx * self.sy):
+                continue  # the cube is a filled square; a cactus is long and thin
             dx, dy = cents[i][0] / self.sx - cx, cents[i][1] / self.sy - cy
             d = (dx * dx + dy * dy) ** 0.5
             if d < C.CUBE_TOP_UNDER_PX:
