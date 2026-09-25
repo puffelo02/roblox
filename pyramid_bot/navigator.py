@@ -412,6 +412,7 @@ class Navigator:
     def climb_to_top(self):
         """Screenshot; stairs or an obstacle in front: jump up. Nothing in front:
         we're on top, stop."""
+        clear = 0
         for jumps in range(C.CLIMB_MAX_JUMPS):
             self.c.check()
             img = self.v.grab()
@@ -419,13 +420,17 @@ class Navigator:
                 continue
             rows = self.v.stairs_ahead(img)
             if rows >= C.STAIRS_MIN_ROWS:
+                clear = 0
                 self.c.jump_forward(0.25)
                 continue
-            if self.b.walk_step_blocked(0.1):
+            if self.b.walk_step_blocked(C.CLIMB_TEST_STEP_SEC):
+                clear = 0
                 self.c.jump_forward(0.25)  # something in the way
                 continue
-            log.info("on top: no stairs or obstacle ahead (%d jumps)", jumps)
-            return True
+            clear += 1
+            if clear >= 2:  # twice in a row: really flat ahead
+                log.info("on top: no stairs or obstacle ahead (%d jumps)", jumps)
+                return True
         log.warning("still stairs ahead after %d jumps", C.CLIMB_MAX_JUMPS)
         return False
 
@@ -447,7 +452,7 @@ class Navigator:
         self.speed_factor = 30 / ws  # slide steps scaled to speed (tuned at 30)
         self._save_cal()
 
-    def go_middle(self, completed, blind=0):
+    def go_middle(self, completed, blind=0, front=False):
         """Look down, walk away from whatever edges are in view until we stand in
         the middle (both axes centred, or no edge in view at all). No position
         bookkeeping to go wrong: every step is decided from a fresh picture."""
@@ -480,6 +485,8 @@ class Navigator:
             if side is not None:
                 # no sign in view but stairs next to us: we fell off. The
                 # pyramid is where the stairs are: go that way, jumping up them
+                if front and side in ("up", "down"):
+                    side = "up"  # we came up the front: the top is always ahead
                 key = {"up": "w", "down": "s", "left": "a", "right": "d"}[side]
                 log.info("fell off? stairs %s of us: climbing back with %s", side, key.upper())
                 self.step_jump(key, C.JUMP_HOLD_SEC + 4 * self.spb)
@@ -722,7 +729,7 @@ class Navigator:
         self.top_align()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
-        self.go_middle(completed)
+        self.go_middle(completed, front=True)
         img = self.v.grab()
         self.v.save(img, "top_view")  # picture from the middle
         self.measure_scale(img, completed)

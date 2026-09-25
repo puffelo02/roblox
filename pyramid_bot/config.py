@@ -197,3 +197,4 @@ CLIMB_MAX_JUMPS = 80
 STAIRS_TOP_MIN_LINES = 5  # top view: this many stair lines on one side = the pyramid is that way
 PITCH_SEARCH_TRIES = 4    # tilt the camera up this many times looking for a sign
 PITCH_SEARCH_PX = 120     # right-drag per tilt step
+CLIMB_TEST_STEP_SEC = 0.25  # walk test while climbing: on stairs this always hits the next step
