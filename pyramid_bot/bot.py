@@ -208,6 +208,11 @@ class Bot:
                 missing += 1
             if offset is None and last_y is not None and missing >= C.SIGN_GONE_CHECKS:
                 # it went off the top of the screen: we're right next to it, keep going
+                if which == "pyramid":
+                    # sign overhead (or already behind us): we're there. Don't
+                    # walk on, the climb takes it from here
+                    log.info("pyramid sign went above the screen: arrived")
+                    return True
                 log.info("%s sign went above the screen: walking straight ahead", which)
                 last_y = None
                 for _ in range(C.NEAR_SIGN_STEPS):
