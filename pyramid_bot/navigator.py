@@ -460,6 +460,7 @@ class Navigator:
         cx, cy = C.CHAR_POS
         prev = None
         no_sign = 0
+        centred = False
         # never walk blind further than about half the layer (the middle)
         blind_left = min(blind, max(0, int((half - 4) / 5)))
         for i in range(C.MIDDLE_MAX_STEPS):
@@ -475,6 +476,7 @@ class Navigator:
                 log.info("to the middle: sign at (%d, %d) -> move x %+.1f, y %+.1f",
                          sign[0], sign[1], nx, ny)
                 if abs(nx) <= C.SIGN_TOL and abs(ny) <= C.SIGN_TOL:
+                    centred = True
                     break
                 ax, d = ("x", nx) if abs(nx) >= abs(ny) else ("y", ny)
                 key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
@@ -493,6 +495,23 @@ class Navigator:
                 log.info("fell off? stairs %s of us: climbing back with %s", side, key.upper())
                 self.step_jump(key, C.JUMP_HOLD_SEC + 4 * self.spb)
                 continue
+            if getattr(self, "pos_known", False):
+                # no sign in view yet: head for the middle from where we think we
+                # are (we just walked the spiral), then look for the sign again
+                mid = self.base / 2
+                dx, dy = mid - self.x, mid - self.y
+                if abs(dx) > 3 or abs(dy) > 3:
+                    ax, d = ("x", dx) if abs(dx) >= abs(dy) else ("y", dy)
+                    key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
+                    step = min(abs(d), C.MIDDLE_STEP_BLOCKS)
+                    log.info("to the middle: sign not in view, heading %s %.0f blocks (at %.0f, %.0f)",
+                             key.upper(), step, self.x, self.y)
+                    self.step_jump(key, step * self.spb)  # jump in case of a step up
+                    if ax == "x":
+                        self.x += step if d > 0 else -step
+                    else:
+                        self.y += step if d > 0 else -step
+                    continue
             strips = self.v.border_strips(img)
             # what we see may be the pyramid's edge OR the edge of the part of
             # this layer already built (a square around the middle, too)
@@ -529,7 +548,12 @@ class Navigator:
             self.move_step(key, max(0.05, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
             self.c.sleep(0.15)
             prev = need
-        self.x = self.y = self.base / 2
+        if centred or not getattr(self, "pos_known", False):
+            self.x = self.y = self.base / 2
+        if centred:
+            self.pos_known = True  # the sign confirmed it
+        else:
+            log.info("couldn't confirm the middle with the sign")
         return True
 
     def sign_pos(self, img):
@@ -731,6 +755,7 @@ class Navigator:
 
     def anchor(self, completed):
         """Climb where we are, look straight down and walk to the middle."""
+        self.pos_known = False
         log.info("anchoring: climb, look down, walk to the middle")
         self.check_walkspeed()
         self.completed = completed

@@ -78,7 +78,7 @@ MAX_RECOVERIES = 3        # turn-back attempts before walking to the PYRAMID sig
 # Set your Walk Speed to 30 in game (lower = more precise). If you change it,
 # start once with:  python run.py --recalibrate
 CALIBRATION_FILE = "calibration.json"   # measured values, kept between updates
-LANE_BLOCKS = 3.5         # blocks between spiral passes (needs place range >= half of this + margin)
+LANE_BLOCKS = 5.0         # blocks between spiral passes (needs place range >= half of this + margin)
 EDGE_INSET = 3.0          # outermost lap this far from the layer edge (room for small errors)
 # corner by sight: where the step edges end on screen
 CORNER_BAND = (380, 580)      # rows (1080p) where the step edges show (above the feet)
