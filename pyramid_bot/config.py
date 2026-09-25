@@ -89,6 +89,8 @@ CORNER_HUD_MASKS = [(0, 300, 430, 1080), (1740, 380, 1920, 700), (0, 0, 1920, 16
                     (1760, 980, 1920, 1080), (0, 980, 340, 1080)]
 CORNER_VISIBLE = (440, 1730)  # step ends outside this can't be seen (HUD / screen edge)
 CORNER_BACKUP_SEC = 0.3      # step back this long when the steps can't be seen
+OVERVIEW_BACKUP_SEC = 0.5     # step back this long at a time until the whole side is visible
+OVERVIEW_MAX_BACKUPS = 14
 CORNER_SLIDE_SEC = 0.25       # slide this long between looks
 CORNER_TARGET_PX = 30          # stop with the steps ending this far past the character (= just inside the corner)
 WALL_CHECK_SEC = 0.4      # slide along the base wall this long between checks

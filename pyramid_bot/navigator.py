@@ -173,6 +173,35 @@ class Navigator:
         log.warning("no corner found along the wall")
         return None
 
+    def locate_by_overview(self):
+        """Back away from the base until both ends of the side are on screen, then
+        work out where we stand along it from that one picture. Returns our x in
+        blocks (0 = left corner), or None. Walks back to the wall afterwards."""
+        backed = 0.0
+        x = None
+        for _ in range(C.OVERVIEW_MAX_BACKUPS):
+            self.c.check()
+            img = self.v.grab()
+            span = self.v.steps_extent(img)
+            lo, hi = C.CORNER_VISIBLE
+            if span and lo < span[0] and span[1] < hi and span[1] - span[0] > 200:
+                frac = (C.CHAR_POS[0] - span[0]) / (span[1] - span[0])
+                x = frac * self.base
+                log.info("overview: side spans x=%d..%d on screen, we're at %.0f%% = block %.1f",
+                         span[0], span[1], frac * 100, x)
+                self.v.save(img, "overview")
+                break
+            self.c.hold("s", C.OVERVIEW_BACKUP_SEC * self.speed_factor)
+            backed += C.OVERVIEW_BACKUP_SEC * self.speed_factor
+        # back to the base wall
+        self.c.hold("w", backed)
+        for _ in range(20):
+            if self.b.walk_step_blocked(C.CLIMB_STEP_SEC * self.speed_factor):
+                break
+        if x is None:
+            log.warning("couldn't see both ends of the side")
+        return x
+
     def find_corner(self, key):
         """Corner by sight first, feeling for the wall's end as a fallback."""
         slid = self.slide_to_corner(key)
@@ -229,8 +258,14 @@ class Navigator:
             self.c.jump_forward(landing)
             jumps += 1
         since_wall = jump_w
-        # stop right there, at the edge of the top: extra jumps and walking on
-        # made the position estimate wrong (it thought it was far inside)
+        # the layer being built may already be there: one more step at most.
+        # No walking on afterwards (that made the position estimate wrong).
+        for _ in range(2):
+            if not self.b.walk_step_blocked(0.12):
+                break
+            self.c.jump_forward(landing)
+            jumps += 1
+        self.extra_steps = jumps - n
         log.info("climbed %d layers (%d jumps)", n, jumps)
         self.jumps = jumps
         return since_wall
@@ -274,8 +309,25 @@ class Navigator:
                 return False
             self.cal["sec_per_block"] = round(slid / self.base, 5)
             self._save_cal()
-        elif self.find_corner("a") is None:
-            return False
+        else:
+            # one picture of the whole side tells us how far the left corner is
+            self.align()
+            x = self.locate_by_overview()
+            if x is not None and self.spb:
+                offset = completed + 2
+                self.align()
+                if x > offset:
+                    self.c.hold("a", (x - offset) * self.spb)
+                else:
+                    self.c.hold("d", (offset - x) * self.spb)
+                self.x = offset
+                since_wall = self.climb_layers(completed)
+                self.y = max(0, completed - 1 + self.extra_steps) + since_wall / self.spb
+                self.heading = 0
+                log.info("anchored at (%.1f, %.1f) from the overview", self.x, self.y)
+                return True
+            if self.find_corner("a") is None:
+                return False
         at_left = True
         # climb two blocks inside the layer being built (not too close to the edge)
         offset = completed + 2
@@ -289,7 +341,7 @@ class Navigator:
         since_wall = self.climb_layers(completed)
         # one jump per layer: the last one starts at the top layer's edge
         # (y = completed - 1) and carries us forward for its W time
-        self.y = max(0, completed - 1) + since_wall / self.spb
+        self.y = max(0, completed - 1 + self.extra_steps) + since_wall / self.spb
         self.heading = 0
         log.info("anchored at (%.1f, %.1f)", self.x, self.y)
         return True
