@@ -174,3 +174,6 @@ WALL_SIGN_FAR_Y = 150
 MIDDLE_BLIND_STEPS = 8    # after climbing: walk ahead (5 blocks) up to this many times until the sign shows
 TOP_ALIGN_OK_DEG = 1.5   # top view: edges this close to level = camera square
 FAR_SIGN_MIN_PIXELS = 12  # the PYRAMID sign from far away (tiny thin text in the sky)
+STRAFE_GAIN = 1.2         # sidestep seconds per unit of sign offset (-1..1) on the way to the pyramid
+STRAFE_MAX_SEC = 0.3
+FACE_SIGN_OK = 0.12       # sign this close to the screen centre = facing it

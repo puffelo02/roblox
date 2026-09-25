@@ -110,7 +110,32 @@ class Bot:
         self.c.hold("s", 0.5)
         self.c.hold("d" if attempt % 2 == 0 else "a", 0.6 + 0.4 * attempt)
 
-    def walk_to_sign(self, which, arrived, stop_when_blocked=False):
+    def face_sign(self, which, max_turns=1.0):
+        """Turn the camera (standing still) until the sign is in view. True if found."""
+        step = C.TURN_90_SEC / 4
+        turned = 0.0
+        while turned < C.TURN_90_SEC * 4 * max_turns:
+            self.c.check()
+            img = self.v.grab()
+            if self.close_menu(img):
+                continue
+            off = self.v.find_sign(img, which)[0]
+            if off is not None:
+                if abs(off) < C.FACE_SIGN_OK:
+                    return True
+                # in view but off to the side: small turn toward it
+                (self.c.turn_left if off < 0 else self.c.turn_right)(
+                    min(step, abs(off) * C.TURN_90_SEC * 0.5))
+                turned += step / 4
+                self.c.sleep(0.1)
+                continue
+            self.c.turn_right(step)
+            turned += step
+            self.c.sleep(0.1)
+        log.warning("can't see the %s sign anywhere", which)
+        return False
+
+    def walk_to_sign(self, which, arrived, stop_when_blocked=False, strafe=False):
         """Steer toward a sign with the arrow keys until arrived(img, pixels) is true.
         If W stops moving us (view doesn't change), we're blocked by something:
         with stop_when_blocked that counts as arrived (used for the pyramid wall),
@@ -158,6 +183,13 @@ class Bot:
             if offset is None and last_y is not None:
                 self.c.hold("w", C.WALK_STEP_SEC)  # close sign just went out of view: keep going
                 continue
+            if offset is None and strafe:
+                if missing >= C.SIGN_GONE_CHECKS:
+                    self.face_sign(which)  # lost it: look around standing still
+                    missing = 0
+                else:
+                    self.c.hold("w", C.WALK_STEP_SEC)
+                continue
             if offset is None:
                 # not in view: spin the camera to look for it
                 self.c.turn_right(C.TURN_90_SEC / 3)
@@ -169,7 +201,14 @@ class Bot:
                     self.c.hold("w", C.WALK_STEP_SEC * 2)
                 continue
             searched = 0.0
-            if offset < -C.STEER_TOLERANCE:
+            if strafe:
+                # keep the camera still: sidestep to keep the sign in the middle
+                if abs(offset) > C.STEER_TOLERANCE:
+                    self.c.down("w")
+                    self.c.hold("a" if offset < 0 else "d",
+                                min(C.STRAFE_MAX_SEC, abs(offset) * C.STRAFE_GAIN))
+                    self.c.up("w")
+            elif offset < -C.STEER_TOLERANCE:
                 self.c.turn_left(C.STEER_TAP_SEC)
             elif offset > C.STEER_TOLERANCE:
                 self.c.turn_right(C.STEER_TAP_SEC)
@@ -261,10 +300,11 @@ class Bot:
 
     def go_to_pyramid(self):
         log.info("-> PYRAMID")
+        self.face_sign("pyramid")  # find the word first, standing still
         ok = self.walk_to_sign(
             "pyramid",
             lambda img, px: px > C.PYRAMID_SIGN_ARRIVED_PIXELS * self.v.sx * self.v.sy,
-            stop_when_blocked=True,
+            stop_when_blocked=True, strafe=True,
         )
         if ok:
             self.c.hold("w", C.PLOT_ENTER_SEC)
