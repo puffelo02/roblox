@@ -664,7 +664,12 @@ class Navigator:
         screen, so W/A/S/D really go along the pyramid's sides."""
         sign, prev = 1, None
         for _ in range(C.ALIGN_MAX_ITER):
-            a = self.v.top_angle(self.v.grab())
+            a = None
+            for _try in range(4):  # a few pictures: one may catch the edge
+                a = self.v.top_angle(self.v.grab())
+                if a is not None:
+                    break
+                self.c.sleep(0.1)
             if a is None:
                 log.info("top view: no edge line to square up on")
                 return
@@ -723,10 +728,16 @@ class Navigator:
         self.c.down("e")
         self.camera_normal()
         self.c.sleep(0.15)
-        if self.v.find_sign(self.v.grab(), "pyramid")[0] is None:
-            log.info("on top: sign not ahead, turning to find it")
-            self.b.face_sign("pyramid", strict=True)  # only stop turning on the real sign
         last_off, last_y, missing = 0.0, None, 0
+        if self.v.find_sign(self.v.grab(), "pyramid")[0] is None:
+            # not ahead: it's almost always right above us or just behind.
+            # Look down first (stepping back); only turn around if that fails
+            if self.look_down_for_sign(0.0, C.APPROACH_BACK_STEPS // 2):
+                return True
+            log.info("on top: sign not below or behind us, turning to find it")
+            self.camera_normal()
+            self.c.sleep(0.15)
+            self.b.face_sign("pyramid", strict=True)  # only stop turning on the real sign
         for i in range(C.APPROACH_MAX_STEPS):
             self.c.check()
             img = self.v.grab()
@@ -749,10 +760,17 @@ class Navigator:
                 log.info("on top: sign not ahead")
                 break
             self.c.sleep(0.1)
-        # look down; if it isn't below us it's behind: walk back toward it
+        if self.look_down_for_sign(last_off, C.APPROACH_BACK_STEPS):
+            return True
+        log.info("on top: sign never showed in the top view")
+        return False
+
+    def look_down_for_sign(self, last_off, steps):
+        """Camera down; if the sign isn't below us it's behind: step back
+        (toward the side it was last seen on) until it shows in the top view."""
         self.camera_top()
         self.top_align()  # we may have turned the camera to find the sign
-        for i in range(C.APPROACH_BACK_STEPS):
+        for i in range(steps):
             self.c.check()
             if self.v.sign_top(self.v.grab()) is not None:
                 log.info("on top: sign in the top view (%d steps back)", i)
@@ -762,8 +780,7 @@ class Navigator:
             self.c.hold("s", 3 * self.spb)  # opposite of the way we were going
             if abs(last_off) > C.STEER_TOLERANCE:
                 self.c.hold("d" if last_off > 0 else "a", min(3, abs(last_off) * 8) * self.spb)
-        log.info("on top: sign never showed in the top view")
-        return False
+        return self.v.sign_top(self.v.grab()) is not None
 
     def move_step(self, key, sec):
         """Top view: walk `sec` seconds. Jump only if the sign was in view and
