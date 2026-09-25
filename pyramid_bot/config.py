@@ -208,3 +208,4 @@ EDGE_INSET_PER_BLOCK = 0.10  # outer lap: + this x layer width further from the 
 EDGE_LAP_PER_BLOCK = 0.12   # edge-cleanup laps likewise (126 wide: +8)
 JUMP_EVERY_MOVES = 3      # hop every this many moves while searching/centring (gets unstuck)
 APPROACH_BACK_STEPS = 12  # looking down: steps back toward a sign that went over our head
+LOST_SEC_LATE = 20        # late in a layer (edge laps / cleanup): nothing placed this long = fell off

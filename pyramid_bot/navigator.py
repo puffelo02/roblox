@@ -640,8 +640,12 @@ class Navigator:
         li = 0
         end = time.time() + C.CLEANUP_SEC
         start_layer = G.layer_info(state["last_n"], self.base)[0]
+        state["last_rise"] = time.time()
         while time.time() < end:
             self.c.check()
+            if time.time() - state["last_rise"] > C.LOST_SEC_LATE:
+                log.info("cleanup: nothing placed for %ds: fell off?", C.LOST_SEC_LATE)
+                return "lost"
             img = self.v.grab()
             if self.b.close_menu(img):
                 self.c.down("e")
@@ -650,6 +654,7 @@ class Navigator:
             if cur:
                 if cur[0] > state["last_n"]:
                     state["last_n"] = cur[0]
+                    state["last_rise"] = time.time()
                     end = max(end, time.time() + 8)  # still placing: keep going
                 if G.layer_info(cur[0], self.base)[0] > start_layer:
                     log.info("layer finished!")
@@ -727,6 +732,17 @@ class Navigator:
                 self.c.turn_left(sec)
             self.c.sleep(0.15)
             prev = a
+
+    def recover(self, completed):
+        """Fell off or lost: back under the A. Stairs / sign search from where we
+        are first; if that fails, walk back to the pyramid and climb it again."""
+        if self.go_middle(completed) or (self.approach_sign(completed) and self.go_middle(completed)):
+            return True
+        log.info("lost the pyramid: walking back to it and climbing up again")
+        self.c.up("e")
+        ok = self.b.go_to_pyramid() and self.anchor(completed)
+        self.c.down("e")
+        return ok
 
     def peek_sign(self):
         """Normal view for a moment: where is the PYRAMID sign ahead? Returns its
@@ -930,7 +946,8 @@ class Navigator:
                     if self.b.empty():
                         return "empty"
                 idle = now - max(state["last_rise"], state["last_cube"])
-                if check_lost and idle > C.LOST_SEC and self._layer_left() > 0.25:
+                limit = C.LOST_SEC if self._layer_left() > 0.25 else C.LOST_SEC_LATE
+                if check_lost and idle > limit:
                     log.info("nothing placed for %.0fs on a layer that isn't done: lost", idle)
                     self.v.save(img, "lost_spiral")
                     return "lost"
@@ -1030,14 +1047,8 @@ class Navigator:
                 if spiral:
                     # start from the middle and spiral outward (your method)
                     mid = (lo + hi) / 2
-                    if not self.go_middle(completed) and not (
-                            self.approach_sign(completed) and self.go_middle(completed)):
-                        # fell off / lost: walk back to the pyramid and climb it again
-                        log.info("lost the pyramid: walking back to it and climbing up again")
-                        self.c.up("e")
-                        if not self.b.go_to_pyramid() or not self.anchor(completed):
-                            return "lost"
-                        self.c.down("e")
+                    if not self.recover(completed):
+                        return "lost"
                     # 2nd pass: laps shifted half a lane, over the strips the 1st one missed
                     shift = (C.LANE_BLOCKS / 2) if tries % 2 else 0
                     path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, self.spiral_inset(hi - lo) + shift)
@@ -1066,11 +1077,16 @@ class Navigator:
                         edge_walked.discard(completed)
                         lost_restarts = 0
                         continue  # next layer: back under the A, new spiral
+                    if status == "lost" and lost_restarts < C.MAX_MIDDLE_RESTARTS:
+                        lost_restarts += 1
+                        if not self.recover(completed):
+                            return "lost"
+                        continue  # carry on with what's missing on this layer
                     return status
                 state["layer"] = completed
                 for i, (tx, ty) in enumerate(path):
                     # the first leg crosses the finished middle: nothing to place there
-                    status = self.walk_to(tx, ty, state, check_lost=i > 0 and spiral,
+                    status = self.walk_to(tx, ty, state, check_lost=i > 0,
                                           watch_edge=i > 0)
                     if i == 0:
                         state["last_rise"] = state["last_cube"] = time.time()
@@ -1080,6 +1096,8 @@ class Navigator:
                         log.info("%s: back to the middle (%d)",
                                  "hit an edge" if status == "edge" else "nothing placed for a while",
                                  lost_restarts)
+                        if not spiral and not self.recover(completed):
+                            return "lost"  # (the spiral start recovers by itself)
                         now = time.time()
                         state["last_rise"] = state["last_cube"] = now
                         break
