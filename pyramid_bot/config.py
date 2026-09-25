@@ -188,3 +188,5 @@ APPROACH_STEP_SEC = 0.15  # one step (normal camera)
 APPROACH_HIGH_Y = 260     # sign seen above this line = close; then it leaves the screen
 APPROACH_MAX_MISSING = 6
 APPROACH_SHORT_BLOCKS = 8  # stop this many blocks before the middle (then line up from the top view)
+APPROACH_STEP_BLOCKS = 5  # on top: one step toward the sign between top-view looks
+APPROACH_MAX_LOOKS = 15

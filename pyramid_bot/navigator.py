@@ -90,7 +90,9 @@ class Navigator:
         if self.top_view:
             return
         self.c.right_drag(C.TILT_DRAG_PX)
-        self.c.hold("o", C.ZOOM_OUT_SEC)
+        # full zoom-out the first time; after that it stays zoomed out
+        self.c.hold("o", C.ZOOM_OUT_SEC if not getattr(self, "zoomed", False) else 0.3)
+        self.zoomed = True
         self.c.sleep(0.2)
         self.top_view = True
 
@@ -623,29 +625,32 @@ class Navigator:
             prev = a
 
     def approach_sign(self, completed):
-        """Just climbed onto the top at its front edge (normal camera, sign ahead,
-        no steps). The middle is half a layer ahead: walk only part of that, so
-        the sign shows in the top view, never further (the far edge is a drop)."""
-        # face the sign by sidestepping (camera stays still)
-        for _ in range(6):
+        """Just climbed onto the top. No assumptions about the layer's size: look
+        down; if the sign is in the top view, stop. Otherwise look up, take one
+        short step toward the sign, and look down again."""
+        for i in range(C.APPROACH_MAX_LOOKS):
+            self.c.check()
+            self.camera_top()
             img = self.v.grab()
+            if self.v.sign_top(img) is not None:
+                log.info("on top: sign in the top view after %d steps", i)
+                return True
+            self.camera_normal()
+            self.c.sleep(0.15)
+            img = self.v.grab()
+            if self.b.close_menu(img):
+                continue
             off, _px = self.v.find_sign(img, "pyramid")
-            if off is None or abs(off) <= C.STEER_TOLERANCE:
-                break
-            self.c.hold("a" if off < 0 else "d", min(0.2, abs(off) * 0.6))
-        side = self.base - 2 * completed  # the layer being built
-        blocks = max(0.0, side / 2 - C.APPROACH_SHORT_BLOCKS)
-        log.info("on top: walking %.0f blocks toward the middle (layer %dx%d)", blocks, side, side)
-        goal = blocks * self.spb
-        moved = 0.0
-        tries = 0
-        while moved < goal and tries < 40:
-            tries += 1
-            step = max(0.02, min(C.APPROACH_STEP_SEC, goal - moved - C.TURN_SETTLE_SEC))
-            if self.b.walk_step_blocked(step):
+            if off is not None and abs(off) > C.STEER_TOLERANCE:
+                self.c.hold("a" if off < 0 else "d", min(0.2, abs(off) * 0.6))
+            before = self.v.scene_small(self.v.grab())
+            self.c.hold("w", C.APPROACH_STEP_BLOCKS * self.spb)  # one short, exact step
+            self.c.sleep(0.1)
+            if self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF:
                 self.c.jump_forward(0.2)  # a block of the new layer in the way
-            else:
-                moved += step + C.TURN_SETTLE_SEC  # W is held during the settle too
+        log.info("on top: sign never showed in the top view")
+        self.camera_top()
+        return False
 
     def move_step(self, key, sec):
         """Top view: walk `sec` seconds. Jump only if the sign was in view and
