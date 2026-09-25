@@ -219,8 +219,6 @@ class Navigator:
         """Jump straight up the steps. Returns seconds moved forward since the
         last step wall (the wall of the top layer is at y = n-1)."""
         jumps = 0
-        free = 0
-        since_wall = 0.0
         # one forward jump per finished layer, whether or not a wall was "seen"
         # (the step check can miss low steps, which left it at the bottom)
         # short jumps at high walk speed so we don't fly far past the step
@@ -231,19 +229,8 @@ class Navigator:
             self.c.jump_forward(landing)
             jumps += 1
         since_wall = jump_w
-        for _ in range(C.MAX_CLIMB_JUMPS):
-            self.c.check()
-            t0 = time.time()
-            if self.b.walk_step_blocked(C.CLIMB_STEP_SEC * self.speed_factor):
-                self.c.jump_forward(landing)  # still a step in front: keep going up
-                jumps += 1
-                free = 0
-                since_wall = jump_w
-            else:
-                free += 1
-                since_wall += time.time() - t0  # real time W was held
-                if free >= 2:
-                    break
+        # stop right there, at the edge of the top: extra jumps and walking on
+        # made the position estimate wrong (it thought it was far inside)
         log.info("climbed %d layers (%d jumps)", n, jumps)
         self.jumps = jumps
         return since_wall
@@ -300,8 +287,9 @@ class Navigator:
             self.c.hold("a", offset * self.spb)
             self.x = self.base - offset
         since_wall = self.climb_layers(completed)
-        # each jump went up one step; the last step's edge is at y = jumps - 1
-        self.y = max(0, self.jumps - 1) + since_wall / self.spb
+        # one jump per layer: the last one starts at the top layer's edge
+        # (y = completed - 1) and carries us forward for its W time
+        self.y = max(0, completed - 1) + since_wall / self.spb
         self.heading = 0
         log.info("anchored at (%.1f, %.1f)", self.x, self.y)
         return True
