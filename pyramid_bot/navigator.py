@@ -721,37 +721,47 @@ class Navigator:
             self.c.sleep(0.15)
             prev = a
 
+    def peek_sign(self):
+        """Normal view for a moment: where is the PYRAMID sign ahead? Returns its
+        offset (-1 left .. +1 right) or None if it's not ahead (overhead/behind)."""
+        self.camera_normal()
+        self.c.sleep(0.15)
+        off = None
+        for _ in range(2):
+            off = self.v.find_sign(self.v.grab(), "pyramid")[0]
+            if off is not None:
+                break
+            self.c.sleep(0.1)
+        self.camera_top()
+        return off
+
     def approach_sign(self, completed):
-        """Just climbed onto the top. No assumptions about the layer's size: look
-        down; if the sign is in the top view, stop. Otherwise look up, take one
-        short step toward the sign, and look down again."""
-        for i in range(C.APPROACH_MAX_LOOKS):
+        """On top, sign not yet in the top view. Remember which way the sign is
+        (normal view), then walk that way looking down, until the sign shows in
+        the top view."""
+        last = self.peek_sign()
+        behind = last is None
+        log.info("on top: sign %s", "not ahead (behind us)" if behind else "ahead, offset %+.2f" % last)
+        for i in range(C.APPROACH_MAX_LOOKS * 2):
             self.c.check()
-            self.camera_top()
-            img = self.v.grab()
-            if self.v.sign_top(img) is not None:
+            if self.v.sign_top(self.v.grab()) is not None:
                 log.info("on top: sign in the top view after %d steps", i)
                 return True
-            self.camera_normal()
-            self.c.sleep(0.15)
-            img = self.v.grab()
-            if self.b.close_menu(img):
-                continue
-            off, _px = self.v.find_sign(img, "pyramid")
-            if off is None:
-                # not ahead: it's overhead or behind us. Step back and look again
-                log.info("on top: sign not ahead, stepping back")
-                self.c.hold("s", C.APPROACH_STEP_BLOCKS * self.spb)
-                continue
-            if abs(off) > C.STEER_TOLERANCE:
-                self.c.hold("a" if off < 0 else "d", min(0.2, abs(off) * 0.6))
-            before = self.v.scene_small(self.v.grab())
-            self.c.hold("w", C.APPROACH_STEP_BLOCKS * self.spb)  # one short, exact step
-            self.c.sleep(0.1)
-            if self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF:
-                self.c.jump_forward(0.2)  # a block of the new layer in the way
+            if i and i % 4 == 0:
+                off = self.peek_sign()  # update the direction now and then
+                if off is not None:
+                    last, behind = off, False
+                else:
+                    behind = True
+            step = C.APPROACH_STEP_BLOCKS * self.spb
+            if behind:
+                # it went over our head: back up, toward the side it was last seen on
+                self.c.hold("s", step)
+            else:
+                self.c.hold("w", step)
+            if last is not None and abs(last) > C.STEER_TOLERANCE:
+                self.c.hold("d" if last > 0 else "a", min(step, abs(last) * 8 * self.spb))
         log.info("on top: sign never showed in the top view")
-        self.camera_top()
         return False
 
     def move_step(self, key, sec):
