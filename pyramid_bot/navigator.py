@@ -490,6 +490,28 @@ class Navigator:
         self.x = self.y = self.base / 2
         return True
 
+    def measure_scale(self, img, completed):
+        """Standing in the middle, the left and right edges of the finished layer
+        below are side blocks apart: that gives pixels per block. The time per
+        block is scaled along (seconds per pixel was measured right)."""
+        st = self.v.border_strips(img)
+        if "left" not in st or "right" not in st:
+            return
+        side = self.base - 2 * (completed - 1)
+        cx = C.CHAR_POS[0]
+        if abs((st["left"] + st["right"]) / 2 - cx) > 3 * self.ppb:
+            return  # not symmetric around us: not both outer edges
+        ppb = (st["right"] - st["left"]) / side
+        old = self.ppb
+        if abs(ppb - old) / old < 0.05:
+            return
+        self.cal["px_per_block"] = round(float(ppb), 2)
+        if self.spb:
+            self.cal["sec_per_block"] = round(float(self.spb * ppb / old), 5)
+        log.info("scale from the edges: %d px for %d blocks = %.1f px/block (was %.1f), "
+                 "%.4fs per block", st["right"] - st["left"], side, ppb, old, self.spb)
+        self._save_cal()
+
     def edge_close(self, img=None, only=None):
         """True if an edge of the pyramid is right next to us (from above).
         `only`: just look at the edge on that side (the way we're walking)."""
@@ -517,7 +539,9 @@ class Navigator:
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
         self.go_middle(completed)
-        self.v.save(self.v.grab(), "top_view")  # picture from the middle
+        img = self.v.grab()
+        self.v.save(img, "top_view")  # picture from the middle
+        self.measure_scale(img, completed)
         log.info("in the middle")
         return True
 
