@@ -312,6 +312,12 @@ class Navigator:
                 dt, last = now - last, now
                 if remaining <= C.BUILD_TICK_SEC:
                     break  # last bit: let go of W right away (no screenshot = no overshoot)
+                if C.BUILD_DUTY < 1:
+                    # pause a moment so placing keeps up with walking
+                    self.c.up("w")
+                    self.c.sleep(C.BUILD_TICK_SEC * (1 - C.BUILD_DUTY) / C.BUILD_DUTY)
+                    self.c.down("w")
+                    last = time.time()
                 img = self.v.grab()
                 if self.b.close_menu(img):
                     self.c.down("e")

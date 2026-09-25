@@ -220,14 +220,15 @@ class Vision:
         m[bottom:] = 0
         m = cv2.dilate(m, np.ones((3, 41), np.uint8))  # join the pieces of each edge
         n, _, st, _ = cv2.connectedComponentsWithStats(m)
-        spans = []
-        for i in range(1, n):
-            x, y, w, h = st[i][:4]
-            if w >= C.CORNER_MIN_LEN * self.sx:
-                spans.append((x / self.sx, (x + w) / self.sx))
-        if not spans:
+        # only the LOWEST long edges count: those are the base steps next to us.
+        # Higher ones can be a partly built layer whose edge ends mid-pyramid.
+        long = [st[i] for i in range(1, n) if st[i][2] >= C.CORNER_MIN_LEN * self.sx]
+        if not long:
             return None
-        return min(a for a, _ in spans), max(b for _, b in spans)
+        lowest = max(r[1] + r[3] for r in long)
+        near = [r for r in long if r[1] + r[3] >= lowest - C.CORNER_LOW_BAND * self.sy]
+        return (min(r[0] for r in near) / self.sx,
+                max(r[0] + r[2] for r in near) / self.sx)
 
     def screen_point(self, xy):
         return (

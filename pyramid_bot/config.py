@@ -62,6 +62,7 @@ INDICATOR_HSV = ((36, 60, 90), (60, 255, 255))   # the green cube's color
 INDICATOR_SEARCH = (480, 470, 1440, 1000)         # only look around the character
 INDICATOR_MIN_AREA = 40
 INDICATOR_MAX_AREA = 4000
+BUILD_DUTY = 0.6          # share of time W is held while building (slower = blocks keep up)
 BUILD_TICK_SEC = 0.1      # how often the screen is checked while building
 COUNTER_EVERY_SEC = 1.0   # counter OCR is slow: only read it this often
 CAPACITY_EVERY_SEC = 3.0
@@ -81,6 +82,7 @@ LANE_BLOCKS = 2.5         # blocks between spiral passes (needs place range >= h
 EDGE_INSET = 2.0          # outermost lap this far from the layer edge (room for small errors)
 # corner by sight: where the step edges end on screen
 CORNER_BAND = (380, 580)      # rows (1080p) where the step edges show (above the feet)
+CORNER_LOW_BAND = 60          # px: edges this close to the lowest one count as the base
 CORNER_MIN_ROWS = 3           # rows with a long edge needed to trust it
 CORNER_MIN_LEN = 300          # an edge band must be this long to count as steps
 CORNER_HUD_MASKS = [(0, 300, 430, 1080), (1740, 380, 1920, 700), (0, 0, 1920, 160),
