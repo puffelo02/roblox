@@ -223,19 +223,22 @@ class Navigator:
         since_wall = 0.0
         # one forward jump per finished layer, whether or not a wall was "seen"
         # (the step check can miss low steps, which left it at the bottom)
+        # short jumps at high walk speed so we don't fly far past the step
+        landing = max(0.2, 0.4 * self.speed_factor)
+        jump_w = 0.05 + C.JUMP_HOLD_SEC + landing
         for _ in range(n):
             self.c.check()
-            self.c.jump_forward()
+            self.c.jump_forward(landing)
             jumps += 1
-        since_wall = C.JUMP_FORWARD_SEC
+        since_wall = jump_w
         for _ in range(C.MAX_CLIMB_JUMPS):
             self.c.check()
             t0 = time.time()
-            if self.b.walk_step_blocked(C.CLIMB_STEP_SEC):
-                self.c.jump_forward()  # still a step in front: keep going up
+            if self.b.walk_step_blocked(C.CLIMB_STEP_SEC * self.speed_factor):
+                self.c.jump_forward(landing)  # still a step in front: keep going up
                 jumps += 1
                 free = 0
-                since_wall = C.JUMP_FORWARD_SEC
+                since_wall = jump_w
             else:
                 free += 1
                 since_wall += time.time() - t0  # real time W was held
@@ -272,11 +275,11 @@ class Navigator:
         if "turn90" not in self.cal:
             self.calibrate_turn()
             self.align()
-        slid = self.find_corner("d")
-        if slid is None:
-            return False
-        at_left = False
+        # always start from the LEFT corner (the first time, measure walk speed
+        # by sliding right corner -> left corner)
         if self.spb is None:
+            if self.find_corner("d") is None:
+                return False
             log.info("measuring walk speed: sliding to the other corner (%d blocks)", self.base)
             self.align()
             slid = self.find_corner("a")
@@ -284,7 +287,9 @@ class Navigator:
                 return False
             self.cal["sec_per_block"] = round(slid / self.base, 5)
             self._save_cal()
-            at_left = True
+        elif self.find_corner("a") is None:
+            return False
+        at_left = True
         # climb two blocks inside the layer being built (not too close to the edge)
         offset = completed + 2
         self.align()

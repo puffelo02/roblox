@@ -70,11 +70,11 @@ class Controls:
     def turn_right(self, sec=C.TURN_90_SEC):
         self.hold("right", sec)
 
-    def jump_forward(self):
+    def jump_forward(self, landing=0.4):
         self.down("w")
         self.sleep(0.05)
         self.hold("space", C.JUMP_HOLD_SEC)
-        self.sleep(0.4)
+        self.sleep(landing)
         self.up("w")
 
     def click(self, xy):
