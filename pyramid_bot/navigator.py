@@ -437,16 +437,23 @@ class Navigator:
             if self.b.close_menu():
                 continue
             strips = self.v.border_strips(self.v.grab())
+            # what we see may be the pyramid's edge OR the edge of the part of
+            # this layer already built (a square around the middle, too)
+            cur = self.b.last_counter
+            placed = G.layer_info(cur[0], self.base)[2] if cur else 0
+            blob = min(half, (placed ** 0.5) / 2) if placed > 0 else half
             need = {}  # blocks to move: +x = D, +y = W
-            for side, pos in strips.items():
-                if side == "right":
-                    need["x"] = (pos - cx) / self.ppb - half
-                elif side == "left":
-                    need["x"] = half - (cx - pos) / self.ppb
-                elif side == "top":
-                    need["y"] = (cy - pos) / self.ppb - half
-                else:
-                    need["y"] = half - (pos - cy) / self.ppb
+            for axis, (a, b, c0) in (("x", ("left", "right", cx)), ("y", ("top", "bottom", cy))):
+                sgn = 1 if axis == "x" else -1  # screen y grows downwards
+                if a in strips and b in strips:
+                    # both sides in view: the middle is halfway between them
+                    need[axis] = sgn * ((strips[a] + strips[b]) / 2 - c0) / self.ppb
+                elif a in strips or b in strips:
+                    side = a if a in strips else b
+                    d = abs(strips[side] - c0) / self.ppb  # blocks to that edge
+                    h = half if d > blob + 1 else blob
+                    away = (1 if side == a else -1) * sgn  # direction away from it
+                    need[axis] = away * max(0.0, h - d)
             log.info("to the middle: edges %s -> move %s",
                      ", ".join("%s %d" % kv for kv in strips.items()) or "none",
                      ", ".join("%s %+.1f" % kv for kv in need.items()) or "nothing")
@@ -593,8 +600,12 @@ class Navigator:
         if abs(ty - self.y) > 0.3:
             moves.append(("w" if ty > self.y else "s", abs(ty - self.y), "y", ty))
         for key, dist, axis, target in moves:
+            lo, hi = self.completed - 1, self.base - (self.completed - 1)
+            # only legs heading close to the outer edge watch for it (the built
+            # square's own edge in the middle looks the same and must not count)
+            near_edge = min(target - lo, hi - target) < C.EDGE_WATCH_BLOCKS
             status = self.walk(dist, state, check_lost=check_lost, key=key,
-                               edge_stop=check_lost and self.top_view)
+                               edge_stop=check_lost and self.top_view and near_edge)
             if status:
                 return status
             if axis == "x":

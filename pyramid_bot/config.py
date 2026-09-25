@@ -159,3 +159,4 @@ MIDDLE_MAX_STEPS = 25     # pictures/steps at most
 MIDDLE_TOL = 2.0          # blocks: close enough to the middle
 MIDDLE_STEP_BLOCKS = 12   # longest step between two pictures
 EDGE_HIT_BLOCKS = 2.0     # an edge this close = "hit the edge": back to the middle
+EDGE_WATCH_BLOCKS = 10   # spiral legs ending this close to the edge watch for it
