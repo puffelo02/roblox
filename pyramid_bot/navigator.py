@@ -490,6 +490,25 @@ class Navigator:
         self.x = self.y = self.base / 2
         return True
 
+    def locate_by_sign(self, img=None):
+        """The sign hangs over the middle: where it is on screen tells exactly
+        where we are. Fixes self.x / self.y. Returns True if the sign was seen."""
+        if img is None:
+            img = self.v.grab()
+        sign = self.v.sign_top(img)
+        if sign is None:
+            return False
+        tx = C.CHAR_POS[0] + C.SIGN_MIDDLE_OFFSET[0]
+        ty = C.CHAR_POS[1] + C.SIGN_MIDDLE_OFFSET[1]
+        mid = self.base / 2
+        x, y = mid - (sign[0] - tx) / self.ppb, mid + (sign[1] - ty) / self.ppb
+        if not (0 <= x <= self.base and 0 <= y <= self.base):
+            return False  # nonsense: not a top-down view of our sign
+        if abs(x - self.x) > 1 or abs(y - self.y) > 1:
+            log.info("sign says (%.1f, %.1f), thought (%.1f, %.1f)", x, y, self.x, self.y)
+        self.x, self.y = x, y
+        return True
+
     def measure_scale(self, img, completed):
         """Standing in the middle, the left and right edges of the finished layer
         below are side blocks apart: that gives pixels per block. The time per
@@ -640,6 +659,12 @@ class Navigator:
         if abs(ty - self.y) > 0.3:
             moves.append(("w" if ty > self.y else "s", abs(ty - self.y), "y", ty))
         for key, dist, axis, target in moves:
+            # from where we really are (the sign may have corrected it)
+            d = target - (self.x if axis == "x" else self.y)
+            if abs(d) <= 0.3:
+                continue
+            dist = abs(d)
+            key = ("d" if d > 0 else "a") if axis == "x" else ("w" if d > 0 else "s")
             lo, hi = self.completed - 1, self.base - (self.completed - 1)
             # only legs heading close to the outer edge watch for it (the built
             # square's own edge in the middle looks the same and must not count)
@@ -652,6 +677,8 @@ class Navigator:
                 self.x = target
             else:
                 self.y = target
+            if self.top_view:
+                self.locate_by_sign()  # correct drift whenever the sign is in view
         return None
 
     # ---------- main ----------
