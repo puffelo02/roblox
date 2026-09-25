@@ -301,6 +301,7 @@ class Bot:
 
     def go_to_blocks(self):
         log.info("-> BLOCKS (capacity empty: refilling)")
+        self.nav.reset_camera()
         if not self.v.pickup_prompt_visible(self.v.grab()):
             self.find_sign_any_pitch("blocks")  # find the red BLOCKS sign, standing still
         return self.walk_to_sign(
@@ -365,6 +366,7 @@ class Bot:
 
     def go_to_pyramid(self):
         log.info("-> PYRAMID")
+        self.nav.reset_camera()
         self.find_sign_any_pitch("pyramid")  # find the word first, standing still
         ok = self.walk_to_sign(
             "pyramid",

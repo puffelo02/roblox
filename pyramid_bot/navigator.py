@@ -96,6 +96,15 @@ class Navigator:
         self.c.sleep(0.2)
         self.top_view = True
 
+    def reset_camera(self):
+        """Known normal view whatever state the camera was left in: tilt all the
+        way down (that stops at straight down), then back up the fixed amount."""
+        self.c.right_drag(C.TILT_DRAG_PX + 300)
+        self.c.sleep(0.1)
+        self.c.right_drag(-C.UNTILT_DRAG_PX)
+        self.top_view = False
+        log.info("camera reset to the normal view")
+
     def camera_normal(self):
         if not self.top_view:
             return
