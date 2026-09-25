@@ -168,3 +168,4 @@ SIGN_TOP_MIN_W = 120      # px: narrower green things are not the sign
 SIGN_TRUST_PX = 330       # only fix the position from the sign when it's this close to its spot
 CUBE_TOP_MIN_AREA = 25    # px: the green cube looks small from above
 CUBE_TOP_UNDER_PX = 18   # a cube this close is the one under our feet
+ARRIVE_BLOCKS = 0.5       # a leg is done this close to its end (seen from the sign)

@@ -490,6 +490,18 @@ class Navigator:
         self.x = self.y = self.base / 2
         return True
 
+    def sign_pos(self, img):
+        """Our (x, y) on the layer from the sign's spot on screen, or None."""
+        sign = self.v.sign_top(img)
+        if sign is None:
+            return None
+        tx = C.CHAR_POS[0] + C.SIGN_MIDDLE_OFFSET[0]
+        ty = C.CHAR_POS[1] + C.SIGN_MIDDLE_OFFSET[1]
+        if abs(sign[0] - tx) > C.SIGN_TRUST_PX or abs(sign[1] - ty) > C.SIGN_TRUST_PX:
+            return None
+        mid = self.base / 2
+        return mid - (sign[0] - tx) / self.ppb, mid + (sign[1] - ty) / self.ppb
+
     def locate_by_sign(self, img=None):
         """The sign hangs over the middle: where it is on screen tells exactly
         where we are. Fixes self.x / self.y. Returns True if the sign was seen."""
@@ -610,7 +622,7 @@ class Navigator:
         return True
 
     # ---------- walking with E held ----------
-    def walk(self, blocks, state, check_lost=True, key="w", edge_stop=False):
+    def walk(self, blocks, state, check_lost=True, key="w", edge_stop=False, goal=None):
         """Walk forward `blocks` with W (E held). Returns None, or "empty",
         "done", "lost" if building should stop."""
         duration = blocks * self.spb
@@ -638,6 +650,16 @@ class Navigator:
                     self.c.down("e")
                     self.c.down(key)
                     continue
+                if goal is not None and self.top_view:
+                    # watch the sign: stop when we've really arrived, not on the clock
+                    pos = self.sign_pos(img)
+                    if pos is not None:
+                        axis, target = goal
+                        v = pos[0] if axis == "x" else pos[1]
+                        ahead = 1 if key in ("d", "w") else -1
+                        if (target - v) * ahead <= C.ARRIVE_BLOCKS:
+                            return None
+                        duration = max(duration, moved + abs(target - v) * self.spb * 1.5)
                 if edge_stop and self.edge_close(img, {"w": "top", "s": "bottom",
                                                        "a": "left", "d": "right"}[key]):
                     return "edge"
@@ -715,7 +737,8 @@ class Navigator:
             # square's own edge in the middle looks the same and must not count)
             near_edge = min(target - lo, hi - target) < C.EDGE_WATCH_BLOCKS
             status = self.walk(dist, state, check_lost=check_lost, key=key,
-                               edge_stop=check_lost and self.top_view and near_edge)
+                               edge_stop=check_lost and self.top_view and near_edge,
+                               goal=(axis, target))
             if status:
                 return status
             if axis == "x":
@@ -769,10 +792,12 @@ class Navigator:
                     # start from the middle and spiral outward (your method)
                     mid = (lo + hi) / 2
                     self.go_middle(completed)
-                    path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, C.EDGE_INSET)
+                    # 2nd pass: laps shifted half a lane, over the strips the 1st one missed
+                    shift = (C.LANE_BLOCKS / 2) if tries % 2 else 0
+                    path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, C.EDGE_INSET + shift)
                     # the middle fills first: skip laps inside the part already built
                     r0 = (1 - left) ** 0.5 * side / 2 - C.LANE_BLOCKS
-                    if kind == "outward" and r0 > 0:
+                    if kind == "outward" and r0 > 0 and tries == 0:
                         rest = [p for p in path if max(abs(p[0] - mid), abs(p[1] - mid)) >= r0]
                         if rest:
                             path = rest
