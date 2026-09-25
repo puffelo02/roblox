@@ -239,8 +239,21 @@ class Bot:
         return False
 
     # ---------- phases ----------
+    def find_sign_any_pitch(self, which):
+        """Turn around looking for the sign; if it's nowhere, the camera is
+        probably still tilted down (top view): tilt up a bit and look again."""
+        for tilt in range(C.PITCH_SEARCH_TRIES + 1):
+            if self.face_sign(which):
+                return True
+            if tilt < C.PITCH_SEARCH_TRIES:
+                log.info("no %s sign all around: tilting the camera up", which)
+                self.c.right_drag(-C.PITCH_SEARCH_PX)
+        return False
+
     def go_to_blocks(self):
-        log.info("-> BLOCKS")
+        log.info("-> BLOCKS (capacity empty: refilling)")
+        if not self.v.pickup_prompt_visible(self.v.grab()):
+            self.find_sign_any_pitch("blocks")  # find the red BLOCKS sign, standing still
         return self.walk_to_sign(
             "blocks", lambda img, px: self.v.pickup_prompt_visible(img)
         )
@@ -303,7 +316,7 @@ class Bot:
 
     def go_to_pyramid(self):
         log.info("-> PYRAMID")
-        self.face_sign("pyramid")  # find the word first, standing still
+        self.find_sign_any_pitch("pyramid")  # find the word first, standing still
         ok = self.walk_to_sign(
             "pyramid",
             lambda img, px: px > C.PYRAMID_SIGN_ARRIVED_PIXELS * self.v.sx * self.v.sy,

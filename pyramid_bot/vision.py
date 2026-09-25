@@ -330,6 +330,31 @@ class Vision:
         cum = np.cumsum(w)
         return float(a[np.searchsorted(cum, cum[-1] / 2)])  # length-weighted median
 
+    def stairs_side_top(self, img):
+        """Top view: which side of the character the pyramid's stairs are on
+        ("up"/"down"/"left"/"right" on screen), or None. Stairs = many long
+        parallel lines; the side with the most of them near us wins."""
+        import math
+        g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        e = cv2.Canny(cv2.GaussianBlur(g, (5, 5), 0), 30, 90)
+        for x1, y1, x2, y2 in C.STRIP_HUD_MASKS:
+            e[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)] = 0
+        e[:int(160 * self.sy), :] = 0
+        lines = cv2.HoughLinesP(e, 1, np.pi / 360, 80, minLineLength=int(200 * self.sx), maxLineGap=10)
+        if lines is None:
+            return None
+        cx, cy = C.CHAR_POS[0] * self.sx, C.CHAR_POS[1] * self.sy
+        rows = {"up": set(), "down": set(), "left": set(), "right": set()}
+        for x1, y1, x2, y2 in lines.reshape(-1, 4):
+            a = (math.degrees(math.atan2(y2 - y1, x2 - x1)) + 180) % 180
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            if a < 25 or a > 155:      # horizontal line: stairs above/below us
+                rows["down" if my > cy else "up"].add(int(my / (8 * self.sy)))
+            elif 55 < a < 125:          # vertical-ish line: stairs left/right
+                rows["right" if mx > cx else "left"].add(int(mx / (8 * self.sx)))
+        side, lines_n = max(((k, len(v)) for k, v in rows.items()), key=lambda kv: kv[1])
+        return side if lines_n >= C.STAIRS_TOP_MIN_LINES else None
+
     def border_strips(self, img):
         """Top-down view: the dark strip around the pyramid's base. Returns the
         inner edge of each strip near the character, in 1080p pixels:

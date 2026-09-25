@@ -476,6 +476,14 @@ class Navigator:
                 self.c.sleep(0.15)
                 prev = None
                 continue
+            side = self.v.stairs_side_top(img)
+            if side is not None:
+                # no sign in view but stairs next to us: we fell off. The
+                # pyramid is where the stairs are: go that way, jumping up them
+                key = {"up": "w", "down": "s", "left": "a", "right": "d"}[side]
+                log.info("fell off? stairs %s of us: climbing back with %s", side, key.upper())
+                self.step_jump(key, C.JUMP_HOLD_SEC + 4 * self.spb)
+                continue
             strips = self.v.border_strips(img)
             # what we see may be the pyramid's edge OR the edge of the part of
             # this layer already built (a square around the middle, too)
