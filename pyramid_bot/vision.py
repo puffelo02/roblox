@@ -433,9 +433,15 @@ class Vision:
             if h == 0 or w / h < C.SIGN_MIN_ASPECT:
                 continue
             px = int(cv2.countNonZero(mask[y:y + h, x:x + w]))
-            if px < C.MIN_SIGN_PIXELS * self.sx * self.sy:
+            tiny = which == "pyramid" and px < C.MIN_SIGN_PIXELS * self.sx * self.sy
+            if tiny:
+                # far away: a few pixels of thin text, its panel too small to check
+                if px < C.FAR_SIGN_MIN_PIXELS * self.sx * self.sy or y < 150 * self.sy \
+                        or w / max(h, 1) < 5:
+                    continue
+            elif px < C.MIN_SIGN_PIXELS * self.sx * self.sy:
                 continue
-            if which == "pyramid" and self._panel_ratio(img, x, y, w, h) < C.PYRAMID_PANEL_MIN:
+            elif which == "pyramid" and self._panel_ratio(img, x, y, w, h) < C.PYRAMID_PANEL_MIN:
                 continue  # green text without the sign's panel: gym label etc.
             if best is None or px > best[1]:
                 best = (cents[i][0], px, cents[i][1] / self.sy)

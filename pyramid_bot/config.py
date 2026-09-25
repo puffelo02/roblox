@@ -173,3 +173,4 @@ WALL_SIGN_FAR_PX = 1500   # pyramid sign smaller than this (and low on screen) =
 WALL_SIGN_FAR_Y = 150
 MIDDLE_BLIND_STEPS = 4    # walk ahead (6 blocks) at most this many times when nothing is in view
 TOP_ALIGN_OK_DEG = 1.5   # top view: edges this close to level = camera square
+FAR_SIGN_MIN_PIXELS = 12  # the PYRAMID sign from far away (tiny thin text in the sky)
