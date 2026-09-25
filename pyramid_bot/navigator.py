@@ -448,7 +448,7 @@ class Navigator:
                     break
                 ax, d = ("x", nx) if abs(nx) >= abs(ny) else ("y", ny)
                 key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
-                self.c.hold(key, max(0.3, min(abs(d), C.MIDDLE_STEP_BLOCKS)) * self.spb)
+                self.step_jump(key, max(0.35, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
                 self.c.sleep(0.15)
                 prev = None
                 continue
@@ -484,7 +484,7 @@ class Navigator:
                 self.c.hold("space", C.JUMP_HOLD_SEC)
                 self.c.sleep(0.3)
                 self.c.up(key)
-            self.c.hold(key, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb)
+            self.step_jump(key, max(0.35, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
             self.c.sleep(0.15)
             prev = need
         self.x = self.y = self.base / 2
@@ -587,6 +587,14 @@ class Navigator:
         log.info("scale from the edges: %d px for %d blocks = %.1f px/block (was %.1f), "
                  "%.4fs per block", st["right"] - st["left"], side, ppb, old, self.spb)
         self._save_cal()
+
+    def step_jump(self, key, sec):
+        """Walk `sec` seconds, jumping at the start: climbs a one-block step
+        (e.g. up onto a new layer) and does nothing harmful on flat ground."""
+        self.c.down(key)
+        self.c.hold("space", C.JUMP_HOLD_SEC)
+        self.c.sleep(max(0.0, sec - C.JUMP_HOLD_SEC))
+        self.c.up(key)
 
     def edge_close(self, img=None, only=None):
         """True if an edge of the pyramid is right next to us (from above).
@@ -816,7 +824,6 @@ class Navigator:
                              completed + 1, side * side - placed)
                     status = self.cleanup_top(state, lo, hi)
                     if status == "layer":
-                        self.c.hold("space", C.JUMP_HOLD_SEC)  # up onto the new layer
                         passes.pop(completed, None)
                         edge_walked.discard(completed)
                         lost_restarts = 0
@@ -838,8 +845,8 @@ class Navigator:
                         state["last_rise"] = state["last_cube"] = now
                         break
                     if status == "layer":
-                        # next layer: hop up onto it and plan a new, smaller spiral
-                        self.c.hold("space", C.JUMP_HOLD_SEC)
+                        # next layer: walking back under the A (jumping on the way)
+                        # climbs onto it; then a new, smaller spiral
                         outward_done = False
                         lost_restarts = 0
                         break
