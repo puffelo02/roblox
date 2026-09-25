@@ -814,12 +814,15 @@ class Navigator:
         self.climb_to_top()
         self.heading = 0
         self.camera_top()
+        self.top_align()  # square the camera first: turning later can lose the sign
         if self.v.sign_top(self.v.grab()) is None:
-            self.approach_sign(completed)  # sign not in view yet: short steps toward it
-        self.top_align()
+            self.approach_sign(completed)  # sign not in view yet: walk toward it looking down
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
-        self.go_middle(completed, front=True)
+        if not self.go_middle(completed, front=True):
+            # lost it again while lining up: look for it again (we're on top)
+            self.approach_sign(completed)
+            self.go_middle(completed)
         img = self.v.grab()
         self.v.save(img, "top_view")  # picture from the middle
         self.measure_scale(img, completed)
@@ -1000,7 +1003,8 @@ class Navigator:
                 if spiral:
                     # start from the middle and spiral outward (your method)
                     mid = (lo + hi) / 2
-                    if not self.go_middle(completed):
+                    if not self.go_middle(completed) and not (
+                            self.approach_sign(completed) and self.go_middle(completed)):
                         # fell off / lost: walk back to the pyramid and climb it again
                         log.info("lost the pyramid: walking back to it and climbing up again")
                         self.c.up("e")
