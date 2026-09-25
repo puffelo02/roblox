@@ -79,7 +79,7 @@ MAX_RECOVERIES = 3        # turn-back attempts before walking to the PYRAMID sig
 # start once with:  python run.py --recalibrate
 CALIBRATION_FILE = "calibration.json"   # measured values, kept between updates
 LANE_BLOCKS = 5.0         # blocks between spiral passes (needs place range >= half of this + margin)
-EDGE_INSET = 3.0          # outermost lap this far from the layer edge (room for small errors)
+EDGE_INSET = 5.0          # outermost lap this far from the layer edge (room for small errors)
 # corner by sight: where the step edges end on screen
 CORNER_BAND = (380, 580)      # rows (1080p) where the step edges show (above the feet)
 CORNER_LOW_BAND = 60          # px: edges this close to the lowest one count as the base
@@ -109,7 +109,7 @@ TURN_CAL_MAX_SEC = 12     # longest camera spin when measuring a full turn
 REANCHOR_EXTRA = 12       # walk this many blocks past the estimated edge when going down
 MAX_MIDDLE_RESTARTS = 12  # times in a row to go back to the middle before giving up the trip
 LOST_SEC = 8              # nothing placed, no cube, layer far from done = lost
-EDGE_LAP_INSETS = (0.7, 1.7)  # laps this far from the edge to pick up missed blocks
+EDGE_LAP_INSETS = (2.5, 4.0)  # laps this far from the edge to pick up missed blocks
 CLEANUP_SEC = 60          # follow the cube this long when a layer has a few missed spots
 CLEANUP_BELOW = 0.12      # under 12% missing (all near the edges): edge laps + cube
 
@@ -158,8 +158,8 @@ SAVE_SCREENSHOTS = True
 MIDDLE_MAX_STEPS = 25     # pictures/steps at most
 MIDDLE_TOL = 2.0          # blocks: close enough to the middle
 MIDDLE_STEP_BLOCKS = 12   # longest step between two pictures
-EDGE_HIT_BLOCKS = 2.0     # an edge this close = "hit the edge": back to the middle
-EDGE_WATCH_BLOCKS = 10   # spiral legs ending this close to the edge watch for it
+EDGE_HIT_BLOCKS = 4.0     # an edge this close = "hit the edge": back to the middle
+EDGE_WATCH_BLOCKS = 15   # spiral legs ending this close to the edge watch for it
 # the PYRAMID sign seen from above hangs over the middle: standing right under
 # its "A" = standing in the middle. Sign centre relative to the character:
 SIGN_MIDDLE_OFFSET = (2, -50)
