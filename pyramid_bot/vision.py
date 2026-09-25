@@ -114,6 +114,41 @@ class Vision:
         white = cv2.inRange(hsv, (0, 0, 220), (179, 40, 255))
         return red.mean() / 255 > 0.12 and white.mean() / 255 > 0.05
 
+    def purchase_popup_x(self, img):
+        """Robux purchase popup (dark box with a wide blue "buy" button): returns
+        the 1080p point of its white X (top-right corner), or None. Never points
+        anywhere near the blue button."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        H, W = hsv.shape[:2]
+        m = cv2.inRange(hsv, (100, 150, 170), (130, 255, 255))
+        n, _, st, _ = cv2.connectedComponentsWithStats(m)
+        for i in range(1, n):
+            x, y, w, h, area = st[i]
+            if not (300 * self.sx <= w <= 600 * self.sx and 25 * self.sy <= h <= 70 * self.sy):
+                continue
+            if area < 0.8 * w * h or not (0.3 * W < x + w / 2 < 0.7 * W):
+                continue
+            cx = int(x + w - 12 * self.sx)          # the X's column
+            scan = min(W - 1, int(x + w + 8 * self.sx))  # margin right of the button: plain box
+            col = img[:y, scan].astype(int).sum(axis=1)
+            top = None
+            for yy in range(y - 5, max(4, y - int(500 * self.sy)), -1):
+                # left the dark box: the dimmed game behind it (medium brightness
+                # for a few rows; the white X itself is much brighter)
+                if all(95 < col[yy - k] < 180 for k in range(4)):
+                    top = yy + 1
+                    break
+            if top is None or y - top < 150 * self.sy:
+                continue
+            xy = (cx, int(top + 28 * self.sy))
+            win = hsv[xy[1] - int(12 * self.sy):xy[1] + int(12 * self.sy),
+                      xy[0] - int(12 * self.sx):xy[0] + int(12 * self.sx)]
+            white = int(((win[:, :, 2] > 220) & (win[:, :, 1] < 40)).sum())
+            if white < 10:
+                continue  # no white X there: don't click
+            return xy[0] / self.sx, xy[1] / self.sy
+        return None
+
     def scene_small(self, img):
         """Tiny grayscale version of the 3D view (HUD cut out) to compare frames.
         The character is blanked out: it turning around (e.g. from facing right

@@ -66,6 +66,19 @@ class Bot:
     def close_menu(self, img=None):
         """If the Upgrades menu popped up, click its X and step off the platform."""
         img = self.v.grab() if img is None else img
+        xy = self.v.purchase_popup_x(img)
+        if xy is not None:
+            log.info("purchase popup open: clicking its X")
+            self.v.save(img, "purchase_popup")
+            self.c.release_all()
+            for _ in range(3):
+                self.c.click(self.v.screen_point(xy))
+                self.c.sleep(0.5)
+                xy = self.v.purchase_popup_x(self.v.grab())
+                if xy is None:
+                    break
+            self.c.hold("s", 0.8)  # step off whatever opened it
+            return True
         if not self.v.menu_open(img):
             return False
         log.info("upgrades menu open, closing it")
@@ -99,6 +112,16 @@ class Bot:
                 log.info("waiting for the pyramid to reset (%ds)", waited)
             self.c.sleep(5)
             waited += 5
+
+    def no_layer_yet(self):
+        """Brand-new pyramid (bare grey baseplate, no finished layer). Only then
+        does "grey ground all around" mean we're on it; dull evening sand can
+        look grey too."""
+        cur = self.last_counter
+        if not cur:
+            return False
+        base = G.base_size(cur[1])
+        return bool(base) and G.layer_info(cur[0], base)[0] == 0
 
     def pyramid_done(self):
         return self.last_counter is not None and self.last_counter[0] >= self.last_counter[1]
@@ -206,7 +229,8 @@ class Bot:
                 self.saw_pyramid_sign = True
             if which == "pyramid" and offset is None and self.pyramid_ahead(img):
                 return self.walk_into_pyramid()
-            if which == "pyramid" and self.saw_pyramid_sign and self.v.on_baseplate(img):
+            if which == "pyramid" and self.saw_pyramid_sign and self.no_layer_yet() \
+                    and self.v.on_baseplate(img):
                 log.info("standing on the pyramid's baseplate: arrived")
                 return True
             if arrived(img, pixels):
