@@ -485,7 +485,7 @@ class Navigator:
         self.speed_factor = 30 / ws  # slide steps scaled to speed (tuned at 30)
         self._save_cal()
 
-    def go_middle(self, completed, blind=0, front=False):
+    def go_middle(self, completed, blind=0, front=False, stairs=True):
         """Look down, walk away from whatever edges are in view until we stand in
         the middle (both axes centred, or no edge in view at all). No position
         bookkeeping to go wrong: every step is decided from a fresh picture."""
@@ -521,7 +521,7 @@ class Navigator:
             if no_sign < C.FELL_OFF_CHECKS:
                 self.c.sleep(0.2)  # the sign may just flicker: look again first
                 continue
-            side = self.v.stairs_side_top(img)
+            side = self.v.stairs_side_top(img) if stairs else None
             if side is not None:
                 # no sign in view but stairs next to us: we fell off. The
                 # pyramid is where the stairs are: go that way, jumping up them
@@ -538,59 +538,7 @@ class Navigator:
                 log.info("fell off? stairs %s of us: climbing back with %s", side, key.upper())
                 self.step_jump(key, C.JUMP_HOLD_SEC + 4 * self.spb)
                 continue
-            if getattr(self, "pos_known", False):
-                # no sign in view yet: head for the middle from where we think we
-                # are (we just walked the spiral), then look for the sign again
-                mid = self.base / 2
-                dx, dy = mid - self.x, mid - self.y
-                if abs(dx) > 3 or abs(dy) > 3:
-                    ax, d = ("x", dx) if abs(dx) >= abs(dy) else ("y", dy)
-                    key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
-                    step = min(abs(d), C.MIDDLE_STEP_BLOCKS)
-                    log.info("to the middle: sign not in view, heading %s %.0f blocks (at %.0f, %.0f)",
-                             key.upper(), step, self.x, self.y)
-                    self.step_jump(key, step * self.spb)  # jump in case of a step up
-                    if ax == "x":
-                        self.x += step if d > 0 else -step
-                    else:
-                        self.y += step if d > 0 else -step
-                    continue
-            strips = self.v.border_strips(img)
-            # what we see may be the pyramid's edge OR the edge of the part of
-            # this layer already built (a square around the middle, too)
-            cur = self.b.last_counter
-            placed = G.layer_info(cur[0], self.base)[2] if cur else 0
-            blob = min(half, (placed ** 0.5) / 2) if placed > 0 else half
-            need = {}  # blocks to move: +x = D, +y = W
-            for axis, (a, b, c0) in (("x", ("left", "right", cx)), ("y", ("top", "bottom", cy))):
-                sgn = 1 if axis == "x" else -1  # screen y grows downwards
-                if a in strips and b in strips:
-                    # both sides in view: the middle is halfway between them
-                    need[axis] = sgn * ((strips[a] + strips[b]) / 2 - c0) / self.ppb
-                elif a in strips or b in strips:
-                    side = a if a in strips else b
-                    d = abs(strips[side] - c0) / self.ppb  # blocks to that edge
-                    h = half if d > blob + 1 else blob
-                    away = (1 if side == a else -1) * sgn  # direction away from it
-                    need[axis] = away * max(0.0, h - d)
-            if blind_left > 0:
-                blind_left -= 1
-                # sign not in view yet: we came up the front side, the middle is
-                # straight ahead (edges here are too easily confused with shadows)
-                log.info("to the middle: sign not in view yet, walking ahead")
-                self.move_step("w", 5 * self.spb)
-                continue
-            log.info("to the middle: edges %s -> move %s",
-                     ", ".join("%s %d" % kv for kv in strips.items()) or "none",
-                     ", ".join("%s %+.1f" % kv for kv in need.items()) or "nothing")
-            big = {a: d for a, d in need.items() if abs(d) > C.MIDDLE_TOL}
-            if not big:
-                break
-            axis, d = max(big.items(), key=lambda kv: abs(kv[1]))
-            key = ("d" if d > 0 else "a") if axis == "x" else ("w" if d > 0 else "s")
-            self.move_step(key, max(0.05, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
-            self.c.sleep(0.15)
-            prev = need
+            break  # no sign, no stairs: stop here and search for the sign by sight
         if centred or not getattr(self, "pos_known", False):
             self.x = self.y = self.base / 2
         if centred:
@@ -736,7 +684,14 @@ class Navigator:
     def recover(self, completed):
         """Fell off or lost: back under the A. Stairs / sign search from where we
         are first; if that fails, walk back to the pyramid and climb it again."""
-        if self.go_middle(completed) or (self.approach_sign(completed) and self.go_middle(completed)):
+        if getattr(self, "just_finished", False):
+            # a layer just got done: we're standing still near its edge. The
+            # stairs we'd see lead down the outside: only look for the sign
+            self.just_finished = False
+            if self.go_middle(completed, stairs=False) or (
+                    self.approach_sign(completed) and self.go_middle(completed, stairs=False)):
+                return True
+        elif self.go_middle(completed) or (self.approach_sign(completed) and self.go_middle(completed)):
             return True
         log.info("lost the pyramid: walking back to it and climbing up again")
         self.c.up("e")
@@ -763,8 +718,13 @@ class Navigator:
         keeping it centred. When it passes over our head (it was high on screen,
         now gone), look down and walk back the opposite way, toward where it was
         last seen, until the sign shows in the top view."""
+        self.c.release_all()  # stand still first
+        self.c.down("e")
         self.camera_normal()
         self.c.sleep(0.15)
+        if self.v.find_sign(self.v.grab(), "pyramid")[0] is None:
+            log.info("on top: sign not ahead, turning to find it")
+            self.b.face_sign("pyramid")
         last_off, last_y, missing = 0.0, None, 0
         for i in range(C.APPROACH_MAX_STEPS):
             self.c.check()
@@ -790,6 +750,7 @@ class Navigator:
             self.c.sleep(0.1)
         # look down; if it isn't below us it's behind: walk back toward it
         self.camera_top()
+        self.top_align()  # we may have turned the camera to find the sign
         for i in range(C.APPROACH_BACK_STEPS):
             self.c.check()
             if self.v.sign_top(self.v.grab()) is not None:
@@ -1073,6 +1034,9 @@ class Navigator:
                              completed + 1, side * side - placed)
                     status = self.cleanup_top(state, lo, hi)
                     if status == "layer":
+                        self.c.release_all()
+                        self.c.down("e")
+                        self.just_finished = True
                         passes.pop(completed, None)
                         edge_walked.discard(completed)
                         lost_restarts = 0
@@ -1102,8 +1066,10 @@ class Navigator:
                         state["last_rise"] = state["last_cube"] = now
                         break
                     if status == "layer":
-                        # next layer: walking back under the A (jumping on the way)
-                        # climbs onto it; then a new, smaller spiral
+                        # next layer: stand still, find the sign, back under the A
+                        self.c.release_all()
+                        self.c.down("e")
+                        self.just_finished = True
                         outward_done = False
                         lost_restarts = 0
                         break
