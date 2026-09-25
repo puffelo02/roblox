@@ -204,3 +204,5 @@ PYRAMID_AHEAD_ROWS = 6    # stair lines straight ahead = the pyramid is right th
 WALK_INTO_MAX_STEPS = 20
 BASEPLATE_MAX_SAT = 100   # grey stone: low colour saturation
 BASEPLATE_SHARE = 0.75    # this much of the ground around us is grey stone = on the baseplate
+EDGE_INSET_PER_BLOCK = 0.08  # outer lap: + this x layer width further from the edge (126 wide: +10)
+EDGE_LAP_PER_BLOCK = 0.065   # edge-cleanup laps likewise (126 wide: +8)

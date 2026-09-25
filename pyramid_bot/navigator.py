@@ -96,6 +96,14 @@ class Navigator:
         self.c.sleep(0.2)
         self.top_view = True
 
+    def spiral_inset(self, side):
+        """How far in from the edge the outer spiral lap stays: more on big
+        layers (long walks out there drift further)."""
+        return C.EDGE_INSET + C.EDGE_INSET_PER_BLOCK * side
+
+    def lap_inset(self, side, i):
+        return C.EDGE_LAP_INSETS[i] + C.EDGE_LAP_PER_BLOCK * side
+
     def reset_camera(self):
         """Known normal view whatever state the camera was left in: tilt all the
         way down (that stops at straight down), then back up the fixed amount."""
@@ -602,7 +610,7 @@ class Navigator:
         """Last few blocks of a layer, still looking straight down: walk to the
         green cube whenever one is in view, else keep lapping near the edges.
         Returns "layer" when the layer is finished, or "empty"/"done"/"lost"."""
-        laps = G.ring(lo, hi, C.EDGE_LAP_INSETS[1], (self.x, self.y))
+        laps = G.ring(lo, hi, self.lap_inset(hi - lo, 1), (self.x, self.y))
         li = 0
         end = time.time() + C.CLEANUP_SEC
         start_layer = G.layer_info(state["last_n"], self.base)[0]
@@ -955,7 +963,7 @@ class Navigator:
                     self.go_middle(completed)
                     # 2nd pass: laps shifted half a lane, over the strips the 1st one missed
                     shift = (C.LANE_BLOCKS / 2) if tries % 2 else 0
-                    path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, C.EDGE_INSET + shift)
+                    path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, self.spiral_inset(hi - lo) + shift)
                     # the middle fills first: skip laps inside the part already built
                     r0 = (1 - left) ** 0.5 * side / 2 - C.LANE_BLOCKS
                     if kind == "outward" and r0 > 0 and tries == 0:
@@ -968,8 +976,8 @@ class Navigator:
                 elif completed not in edge_walked:
                     edge_walked.add(completed)
                     # missed blocks are mostly along the edges: two laps close to them
-                    path = (G.ring(lo, hi, C.EDGE_LAP_INSETS[0], (self.x, self.y))
-                            + G.ring(lo, hi, C.EDGE_LAP_INSETS[1], (self.x, self.y)))
+                    path = (G.ring(lo, hi, self.lap_inset(hi - lo, 0), (self.x, self.y))
+                            + G.ring(lo, hi, self.lap_inset(hi - lo, 1), (self.x, self.y)))
                     log.info("layer %d %d%% done: laps along the edges for missed blocks",
                              completed + 1, 100 - left * 100)
                 else:
