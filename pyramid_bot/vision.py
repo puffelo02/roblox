@@ -230,6 +230,23 @@ class Vision:
         return (min(r[0] for r in near) / self.sx,
                 max(r[0] + r[2] for r in near) / self.sx)
 
+    def sign_top(self, img):
+        """Top-down view: the green PYRAMID sign floating over the pyramid's
+        middle. Returns (x, y) of its centre in 1080p pixels, or None."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        m = cv2.inRange(hsv, (40, 120, 120), (85, 255, 255))
+        m[:int(160 * self.sy), int(600 * self.sx):int(1400 * self.sx)] = 0  # +1,000 buttons
+        m = cv2.dilate(m, np.ones((9, 25), np.uint8))
+        n, _, st, cen = cv2.connectedComponentsWithStats(m)
+        best = None
+        for i in range(1, n):
+            x, y, w, h, area = st[i]
+            if w < C.SIGN_TOP_MIN_W * self.sx or w < 3 * h:
+                continue
+            if best is None or area > best[0]:
+                best = (area, cen[i][0] / self.sx, cen[i][1] / self.sy)
+        return None if best is None else (best[1], best[2])
+
     def border_strips(self, img):
         """Top-down view: the dark strip around the pyramid's base. Returns the
         inner edge of each strip near the character, in 1080p pixels:

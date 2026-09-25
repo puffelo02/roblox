@@ -436,7 +436,23 @@ class Navigator:
             self.c.check()
             if self.b.close_menu():
                 continue
-            strips = self.v.border_strips(self.v.grab())
+            img = self.v.grab()
+            sign = self.v.sign_top(img)
+            if sign is not None:
+                # the sign hangs right over the middle: get under its "A"
+                tx, ty = cx + C.SIGN_MIDDLE_OFFSET[0], cy + C.SIGN_MIDDLE_OFFSET[1]
+                nx, ny = (sign[0] - tx) / self.ppb, (ty - sign[1]) / self.ppb
+                log.info("to the middle: sign at (%d, %d) -> move x %+.1f, y %+.1f",
+                         sign[0], sign[1], nx, ny)
+                if abs(nx) <= C.SIGN_TOL and abs(ny) <= C.SIGN_TOL:
+                    break
+                ax, d = ("x", nx) if abs(nx) >= abs(ny) else ("y", ny)
+                key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
+                self.c.hold(key, max(0.3, min(abs(d), C.MIDDLE_STEP_BLOCKS)) * self.spb)
+                self.c.sleep(0.15)
+                prev = None
+                continue
+            strips = self.v.border_strips(img)
             # what we see may be the pyramid's edge OR the edge of the part of
             # this layer already built (a square around the middle, too)
             cur = self.b.last_counter

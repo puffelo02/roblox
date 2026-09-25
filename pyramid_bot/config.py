@@ -160,3 +160,8 @@ MIDDLE_TOL = 2.0          # blocks: close enough to the middle
 MIDDLE_STEP_BLOCKS = 12   # longest step between two pictures
 EDGE_HIT_BLOCKS = 2.0     # an edge this close = "hit the edge": back to the middle
 EDGE_WATCH_BLOCKS = 10   # spiral legs ending this close to the edge watch for it
+# the PYRAMID sign seen from above hangs over the middle: standing right under
+# its "A" = standing in the middle. Sign centre relative to the character:
+SIGN_MIDDLE_OFFSET = (2, -50)
+SIGN_TOL = 0.6            # blocks
+SIGN_TOP_MIN_W = 120      # px: narrower green things are not the sign
