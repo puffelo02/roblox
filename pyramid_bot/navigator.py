@@ -182,11 +182,13 @@ class Navigator:
         prev = None
         for i in range(C.OVERVIEW_MAX_BACKUPS):
             self.c.check()
+            if self.b.close_menu():
+                continue
             if i >= C.OVERVIEW_MIN_BACKUPS:
                 img = self.v.grab()
                 span = self.v.steps_extent(img)
                 lo, hi = C.CORNER_VISIBLE
-                ok = (span and lo + 40 < span[0] and span[1] < hi - 40
+                ok = (span and lo + 10 < span[0] and span[1] < hi - 10
                       and span[1] - span[0] > 200)
                 if ok:
                     frac = (C.CHAR_POS[0] - span[0]) / (span[1] - span[0])
