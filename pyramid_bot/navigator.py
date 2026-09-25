@@ -887,8 +887,6 @@ class Navigator:
         if not cur:
             return "failed"
         completed, side, _ = G.layer_info(cur[0], base)
-        if completed == 0:
-            return "failed"  # no base wall yet to anchor on: caller follows the cube
         if not self.anchor(completed):
             return "failed"
         now = time.time()
