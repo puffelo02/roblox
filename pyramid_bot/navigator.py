@@ -622,13 +622,46 @@ class Navigator:
             self.c.sleep(0.15)
             prev = a
 
+    def approach_sign(self):
+        """On top, normal camera: walk toward the PYRAMID sign floating over the
+        middle, sidestepping to keep it centred, jumping only when blocked. Stops
+        once the sign has gone up out of view (we're nearly under it)."""
+        seen_high = False
+        missing = 0
+        for _ in range(C.APPROACH_MAX_STEPS):
+            self.c.check()
+            img = self.v.grab()
+            if self.b.close_menu(img):
+                continue
+            off, _px = self.v.find_sign(img, "pyramid")
+            if off is None:
+                missing += 1
+                if seen_high and missing >= 2:
+                    log.info("sign went above the screen: close to the middle")
+                    return True
+                if missing > C.APPROACH_MAX_MISSING:
+                    log.info("can't see the sign from here")
+                    return False
+            else:
+                missing = 0
+                seen_high = self.v.last_sign_y < C.APPROACH_HIGH_Y
+                if abs(off) > C.STEER_TOLERANCE:
+                    self.c.hold("a" if off < 0 else "d", min(0.2, abs(off) * 0.6))
+            if self.b.walk_step_blocked(C.APPROACH_STEP_SEC):
+                self.c.jump_forward()  # a block of the new layer in the way
+        return True
+
     def move_step(self, key, sec):
-        """Walk `sec` seconds; only if that didn't move us (a block in the way),
-        jump onto it. Plain walking otherwise: jumps fly much further than planned."""
-        before = self.v.scene_small(self.v.grab())
+        """Top view: walk `sec` seconds. Jump only if the sign was in view and
+        didn't move at all (a block in the way). Plain sand from above looks the
+        same everywhere, so the picture itself can't tell us we're stuck."""
+        before = self.v.sign_top(self.v.grab())
         self.c.hold(key, sec)
         self.c.sleep(0.1)
-        if self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF:
+        after = self.v.sign_top(self.v.grab())
+        if before is not None and after is not None and \
+                abs(before[0] - after[0]) + abs(before[1] - after[1]) < 3 and sec > 0.1:
+            log.info("didn't move: a block in the way, jumping onto it")
             self.step_jump(key, C.JUMP_HOLD_SEC + 0.1)
 
     def edge_close(self, img=None, only=None):
@@ -654,11 +687,12 @@ class Navigator:
         self.align()
         self.climb_layers(completed)
         self.heading = 0
+        self.approach_sign()  # normal camera: walk toward the sign first
         self.camera_top()
         self.top_align()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
-        self.go_middle(completed, blind=C.MIDDLE_BLIND_STEPS)
+        self.go_middle(completed)
         img = self.v.grab()
         self.v.save(img, "top_view")  # picture from the middle
         self.measure_scale(img, completed)

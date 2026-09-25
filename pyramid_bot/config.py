@@ -183,3 +183,7 @@ FAR_SIGN_W = (25, 160)    # px wide
 WALL_STEP_MIN_LEN = 300   # px: step lines at least this long (the leaderboard/sand block have short ones)
 WALL_MIN_STEP_ROWS = 3    # this many long stacked step lines ahead = the pyramid
 WALL_MAX_STEP_ROWS = 40   # a tall pyramid close up shows many steps
+APPROACH_MAX_STEPS = 60   # on top: walking steps toward the sign at most
+APPROACH_STEP_SEC = 0.15  # one step (normal camera)
+APPROACH_HIGH_Y = 260     # sign seen above this line = close; then it leaves the screen
+APPROACH_MAX_MISSING = 6
