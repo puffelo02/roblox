@@ -459,6 +459,7 @@ class Navigator:
         half = (self.base - 2 * (completed - 1)) / 2  # top finished layer
         cx, cy = C.CHAR_POS
         prev = None
+        no_sign = 0
         # never walk blind further than about half the layer (the middle)
         blind_left = min(blind, max(0, int((half - 4) / 5)))
         for i in range(C.MIDDLE_MAX_STEPS):
@@ -477,11 +478,12 @@ class Navigator:
                     break
                 ax, d = ("x", nx) if abs(nx) >= abs(ny) else ("y", ny)
                 key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
-                self.move_step(key, max(0.05, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
-                self.c.sleep(0.15)
+                self.move_step(key, max(0.05, min(abs(d) * C.MIDDLE_GAIN, C.MIDDLE_STEP_BLOCKS) * self.spb))
                 prev = None
+                no_sign = 0
                 continue
-            side = self.v.stairs_side_top(img)
+            no_sign += 1
+            side = self.v.stairs_side_top(img) if no_sign >= C.FELL_OFF_CHECKS else None
             if side is not None:
                 # no sign in view but stairs next to us: we fell off. The
                 # pyramid is where the stairs are: go that way, jumping up them
@@ -693,8 +695,20 @@ class Navigator:
         same everywhere, so the picture itself can't tell us we're stuck."""
         before = self.v.sign_top(self.v.grab())
         self.c.hold(key, sec)
-        self.c.sleep(0.1)
+        self.c.sleep(0.15)
         after = self.v.sign_top(self.v.grab())
+        if before is not None and after is not None and sec >= 0.08:
+            moved_px = abs(after[0] - before[0]) if key in ("a", "d") else abs(after[1] - before[1])
+            if moved_px > 25:
+                # how far that really went: keep seconds-per-block honest
+                spb = sec / (moved_px / self.ppb)
+                new = round(0.7 * self.spb + 0.3 * spb, 5)
+                if abs(new - self.spb) / self.spb > 0.03:
+                    log.info("speed check: %.4fs per block (was %.4f)", new, self.spb)
+                self.cal["sec_per_block"] = new
+                self.speed_samples = getattr(self, "speed_samples", 0) + 1
+                if self.speed_samples % 5 == 0:
+                    self._save_cal()
         if before is not None and after is not None and \
                 abs(before[0] - after[0]) + abs(before[1] - after[1]) < 3 and sec > 0.1:
             log.info("didn't move: a block in the way, jumping onto it")
