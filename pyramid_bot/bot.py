@@ -113,6 +113,19 @@ class Bot:
         self.c.hold("s", 0.5)
         self.c.hold("d" if attempt % 2 == 0 else "a", 0.6 + 0.4 * attempt)
 
+    def pyramid_ahead(self, img):
+        """The pyramid's big staircase right in front of us (the sign itself may
+        be hidden behind the counter bar up top)."""
+        return self.v.stairs_ahead(img) >= C.PYRAMID_AHEAD_ROWS
+
+    def walk_into_pyramid(self):
+        """Walk forward until the pyramid's wall stops us."""
+        log.info("pyramid staircase right ahead: walking up to it")
+        for _ in range(C.WALK_INTO_MAX_STEPS):
+            if self.walk_step_blocked(C.WALK_STEP_SEC):
+                return True
+        return True
+
     def face_sign(self, which, max_turns=1.0):
         """Turn the camera (standing still) until the sign is in view. True if found."""
         step = C.TURN_90_SEC / 4
@@ -123,6 +136,8 @@ class Bot:
             if self.close_menu(img):
                 continue
             off = self.v.find_sign(img, which)[0]
+            if off is None and which == "pyramid" and self.pyramid_ahead(img):
+                return True  # staircase right ahead, sign hidden behind the UI
             if off is not None:
                 if abs(off) < C.FACE_SIGN_OK:
                     return True
@@ -155,6 +170,8 @@ class Bot:
             if self.close_menu(img):
                 continue
             offset, pixels = self.v.find_sign(img, which)
+            if which == "pyramid" and offset is None and self.pyramid_ahead(img):
+                return self.walk_into_pyramid()
             if arrived(img, pixels):
                 log.info("arrived at %s", which)
                 return True

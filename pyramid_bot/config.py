@@ -200,3 +200,5 @@ PITCH_SEARCH_PX = 120     # right-drag per tilt step
 CLIMB_TEST_STEP_SEC = 0.25  # walk test while climbing: on stairs this always hits the next step
 MIDDLE_GAIN = 0.6         # move this share of the way to the A per step (no overshooting)
 FELL_OFF_CHECKS = 3       # sign missing this many checks in a row before looking for stairs
+PYRAMID_AHEAD_ROWS = 6    # stair lines straight ahead = the pyramid is right there
+WALK_INTO_MAX_STEPS = 20
