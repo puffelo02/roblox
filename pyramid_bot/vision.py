@@ -180,14 +180,14 @@ class Vision:
             return None  # lines disagree: not a clean edge
         return median
 
-    def step_rows(self, img):
+    def step_rows(self, img, min_len=150):
         """How many parallel near-horizontal edges are stacked in front of us.
         The pyramid's steps give several (one per layer); a plain wall gives 1-2."""
         import math
         x1, y1, x2, y2 = self._scale(C.STEPS_REGION)
         g = cv2.GaussianBlur(cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY), (5, 5), 0)
         lines = cv2.HoughLinesP(cv2.Canny(g, 30, 90), 1, np.pi / 360, 80,
-                                minLineLength=int(150 * self.sx), maxLineGap=10)
+                                minLineLength=int(min_len * self.sx), maxLineGap=10)
         if lines is None:
             return 0
         found = []
@@ -482,7 +482,7 @@ class Vision:
         is still far ahead (whatever blocks us isn't it)."""
         mask = self._sign_mask(img, C.GREEN_RANGES)
         mask[int(C.SIGN_MAX_Y * self.sy):, :] = 0
-        mask[:int(160 * self.sy), :] = 0  # the +1,000 buttons
+        mask[:int(C.WALL_SIGN_FAR_Y * self.sy), :] = 0  # high up = we're close to it
         joined = cv2.dilate(mask, np.ones((5, 15), np.uint8))
         n, _, stats, _ = cv2.connectedComponentsWithStats(joined)
         mid = img.shape[1] / 2

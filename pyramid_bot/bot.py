@@ -83,14 +83,17 @@ class Bot:
         """Is the wall in front of us really the pyramid? Placing works from its
         base (counter goes up), and its steps show as several stacked edges."""
         img = self.v.grab()
-        if self.v.pyramid_sign_far(img):
-            # the PYRAMID sign still small and far ahead: this is something else
-            log.info("wall check: pyramid sign still far ahead: not the pyramid")
-            return False
-        rows = self.v.step_rows(img)
-        if C.PYRAMID_MIN_STEP_ROWS <= rows <= C.PYRAMID_MAX_STEP_ROWS:
+        # the pyramid's shape: a stack of long, wide step lines in front of us
+        rows = self.v.step_rows(img, C.WALL_STEP_MIN_LEN)
+        far = self.v.pyramid_sign_far(img)
+        if C.WALL_MIN_STEP_ROWS <= rows <= C.WALL_MAX_STEP_ROWS:
+            # the pyramid's shape: stacked step lines in front of us
             log.info("wall check: %d step edges ahead, it's the pyramid", rows)
             return True
+        if far:
+            # the PYRAMID sign still a tiny speck near the horizon: something else
+            log.info("wall check: pyramid sign still far ahead: not the pyramid")
+            return False
         before = self.counter()
         self.c.hold("e", C.WALL_CHECK_PLACE_SEC)
         after = self.counter()

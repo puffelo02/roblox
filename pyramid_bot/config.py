@@ -169,8 +169,8 @@ SIGN_TRUST_PX = 330       # only fix the position from the sign when it's this c
 CUBE_TOP_MIN_AREA = 25    # px: the green cube looks small from above
 CUBE_TOP_UNDER_PX = 18   # a cube this close is the one under our feet
 ARRIVE_BLOCKS = 0.5       # a leg is done this close to its end (seen from the sign)
-WALL_SIGN_FAR_PX = 1500   # pyramid sign smaller than this (and low on screen) = still far away
-WALL_SIGN_FAR_Y = 150
+WALL_SIGN_FAR_PX = 400   # pyramid sign smaller than this (and low on screen) = still far away
+WALL_SIGN_FAR_Y = 200
 MIDDLE_BLIND_STEPS = 8    # after climbing: walk ahead (5 blocks) up to this many times until the sign shows
 TOP_ALIGN_OK_DEG = 1.5   # top view: edges this close to level = camera square
 FAR_SIGN_MIN_PIXELS = 12  # the PYRAMID sign from far away (tiny thin text in the sky)
@@ -180,3 +180,6 @@ FACE_SIGN_OK = 0.12       # sign this close to the screen centre = facing it
 FAR_SIGN_HSV = ((40, 60, 45), (80, 255, 255))  # sign green incl. the dark letter outline
 FAR_SIGN_Y = (160, 380)   # far away the sign floats just above the horizon
 FAR_SIGN_W = (25, 160)    # px wide
+WALL_STEP_MIN_LEN = 300   # px: step lines at least this long (the leaderboard/sand block have short ones)
+WALL_MIN_STEP_ROWS = 3    # this many long stacked step lines ahead = the pyramid
+WALL_MAX_STEP_ROWS = 40   # a tall pyramid close up shows many steps
