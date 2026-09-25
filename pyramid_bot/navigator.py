@@ -410,7 +410,7 @@ class Navigator:
         return True
 
     # ---------- walking with E held ----------
-    def walk(self, blocks, state, check_lost=True):
+    def walk(self, blocks, state, check_lost=True, key="w"):
         """Walk forward `blocks` with W (E held). Returns None, or "empty",
         "done", "lost" if building should stop."""
         duration = blocks * self.spb
@@ -418,7 +418,7 @@ class Navigator:
         last = time.time()
         prev = None
         blocked = 0
-        self.c.down("w")
+        self.c.down(key)
         try:
             while moved < duration:
                 remaining = duration - moved
@@ -429,14 +429,14 @@ class Navigator:
                     break  # last bit: let go of W right away (no screenshot = no overshoot)
                 if C.BUILD_DUTY < 1:
                     # pause a moment so placing keeps up with walking
-                    self.c.up("w")
+                    self.c.up(key)
                     self.c.sleep(C.BUILD_TICK_SEC * (1 - C.BUILD_DUTY) / C.BUILD_DUTY)
-                    self.c.down("w")
+                    self.c.down(key)
                     last = time.time()
                 img = self.v.grab()
                 if self.b.close_menu(img):
                     self.c.down("e")
-                    self.c.down("w")
+                    self.c.down(key)
                     continue
                 scene = self.v.scene_small(img)
                 if prev is not None and self.v.scene_diff(prev, scene) < C.BLOCKED_DIFF:
@@ -474,7 +474,7 @@ class Navigator:
                     self.v.save(img, "lost_spiral")
                     return "lost"
         finally:
-            self.c.up("w")
+            self.c.up(key)
         return None
 
     def _layer_left(self):
@@ -492,21 +492,24 @@ class Navigator:
         return None
 
     def walk_to(self, tx, ty, state):
+        """Move to (tx, ty). On top the camera looks straight down and is never
+        turned, so screen directions are pyramid directions: W = +y (up on
+        screen), S = -y, D = +x, A = -x. Position is re-measured after each leg."""
         moves = []
         if abs(tx - self.x) > 0.3:
-            moves.append((90 if tx > self.x else 270, abs(tx - self.x), "x", tx))
+            moves.append(("d" if tx > self.x else "a", abs(tx - self.x), "x", tx))
         if abs(ty - self.y) > 0.3:
-            moves.append((0 if ty > self.y else 180, abs(ty - self.y), "y", ty))
-        moves.sort(key=lambda m: m[0] != self.heading)  # no turn first
-        for heading, dist, axis, target in moves:
-            self.face(heading)
-            status = self.walk(dist, state)
+            moves.append(("w" if ty > self.y else "s", abs(ty - self.y), "y", ty))
+        for key, dist, axis, target in moves:
+            status = self.walk(dist, state, key=key)
             if status:
                 return status
             if axis == "x":
                 self.x = target
             else:
                 self.y = target
+            if self.top_view:
+                self.locate(self.completed)
         return None
 
     # ---------- main ----------
