@@ -432,6 +432,8 @@ class Navigator:
         half = (self.base - 2 * (completed - 1)) / 2  # top finished layer
         cx, cy = C.CHAR_POS
         prev = None
+        # never walk blind further than about half the layer (the middle)
+        blind_left = min(blind, max(0, int((half - 4) / 5)))
         for i in range(C.MIDDLE_MAX_STEPS):
             self.c.check()
             if self.b.close_menu():
@@ -448,7 +450,7 @@ class Navigator:
                     break
                 ax, d = ("x", nx) if abs(nx) >= abs(ny) else ("y", ny)
                 key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
-                self.step_jump(key, max(0.35, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
+                self.move_step(key, max(0.05, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
                 self.c.sleep(0.15)
                 prev = None
                 continue
@@ -470,11 +472,12 @@ class Navigator:
                     h = half if d > blob + 1 else blob
                     away = (1 if side == a else -1) * sgn  # direction away from it
                     need[axis] = away * max(0.0, h - d)
-            if i < blind:
+            if blind_left > 0:
+                blind_left -= 1
                 # sign not in view yet: we came up the front side, the middle is
                 # straight ahead (edges here are too easily confused with shadows)
                 log.info("to the middle: sign not in view yet, walking ahead")
-                self.step_jump("w", 5 * self.spb)
+                self.move_step("w", 5 * self.spb)
                 continue
             log.info("to the middle: edges %s -> move %s",
                      ", ".join("%s %d" % kv for kv in strips.items()) or "none",
@@ -484,13 +487,7 @@ class Navigator:
                 break
             axis, d = max(big.items(), key=lambda kv: abs(kv[1]))
             key = ("d" if d > 0 else "a") if axis == "x" else ("w" if d > 0 else "s")
-            if prev and prev.get(axis) is not None and abs(prev[axis] - d) < 1.0:
-                # the last step didn't move us: a step in the way, jump onto it
-                self.c.down(key)
-                self.c.hold("space", C.JUMP_HOLD_SEC)
-                self.c.sleep(0.3)
-                self.c.up(key)
-            self.step_jump(key, max(0.35, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
+            self.move_step(key, max(0.05, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb))
             self.c.sleep(0.15)
             prev = need
         self.x = self.y = self.base / 2
@@ -624,6 +621,15 @@ class Navigator:
                 self.c.turn_left(sec)
             self.c.sleep(0.15)
             prev = a
+
+    def move_step(self, key, sec):
+        """Walk `sec` seconds; only if that didn't move us (a block in the way),
+        jump onto it. Plain walking otherwise: jumps fly much further than planned."""
+        before = self.v.scene_small(self.v.grab())
+        self.c.hold(key, sec)
+        self.c.sleep(0.1)
+        if self.v.scene_diff(before, self.v.scene_small(self.v.grab())) < C.BLOCKED_DIFF:
+            self.step_jump(key, C.JUMP_HOLD_SEC + 0.1)
 
     def edge_close(self, img=None, only=None):
         """True if an edge of the pyramid is right next to us (from above).
