@@ -516,8 +516,8 @@ class Navigator:
         self.camera_top()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
-        self.v.save(self.v.grab(), "top_view")
         self.go_middle(completed)
+        self.v.save(self.v.grab(), "top_view")  # picture from the middle
         log.info("in the middle")
         return True
 
@@ -663,7 +663,7 @@ class Navigator:
                 lo, hi = G.layer_bounds(completed, base)
                 tries = passes.get(completed, 0)
                 passes[completed] = tries + 1
-                spiral = tries == 0 or (left >= C.CLEANUP_BELOW and tries < 3)
+                spiral = left >= C.CLEANUP_BELOW and tries < 3
                 if (spiral and outward_done) or (not spiral and completed not in edge_fixed):
                     # after an inward+outward pair, or before edge laps: fix drift
                     outward_done = False
