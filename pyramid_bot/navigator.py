@@ -906,8 +906,11 @@ class Navigator:
                     state["next_cap"] = now + C.CAPACITY_EVERY_SEC
                     if self.b.empty():
                         return "empty"
-                idle = now - max(state["last_rise"], state["last_cube"])
-                limit = C.LOST_SEC if self._layer_left() > 0.25 else C.LOST_SEC_LATE
+                late = self._layer_left() <= 0.25
+                # late in a layer only the counter counts (a green cactus can
+                # look like the placement cube)
+                idle = now - (state["last_rise"] if late else max(state["last_rise"], state["last_cube"]))
+                limit = C.LOST_SEC_LATE if late else C.LOST_SEC
                 if check_lost and idle > limit:
                     log.info("nothing placed for %.0fs on a layer that isn't done: lost", idle)
                     self.v.save(img, "lost_spiral")
@@ -1060,8 +1063,8 @@ class Navigator:
                         log.info("%s: back to the middle (%d)",
                                  "hit an edge" if status == "edge" else "nothing placed for a while",
                                  lost_restarts)
-                        if not spiral and not self.recover(completed):
-                            return "lost"  # (the spiral start recovers by itself)
+                        if not self.recover(completed):
+                            return "lost"
                         now = time.time()
                         state["last_rise"] = state["last_cube"] = now
                         break
