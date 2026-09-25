@@ -96,6 +96,22 @@ class Navigator:
         self.c.sleep(0.2)
         self.top_view = True
 
+    def leg_scale(self, key):
+        return getattr(self, "leg_scales", {}).get(key, 1.0)
+
+    def learn_leg(self, key, planned, actual):
+        """planned blocks vs actual blocks walked on a leg in direction key."""
+        if actual <= 0:
+            return
+        scales = getattr(self, "leg_scales", {})
+        old = scales.get(key, 1.0)
+        ratio = actual / planned  # >1 = we overshoot: walk shorter next time
+        new = min(1.5, max(0.6, old / (ratio ** 0.5)))
+        scales[key] = new
+        self.leg_scales = scales
+        if abs(new - old) > 0.03:
+            log.info("legs going %s: walked %.0f of %.0f blocks, now x%.2f", key.upper(), actual, planned, new)
+
     def spiral_inset(self, side):
         """How far in from the edge the outer spiral lap stays: more on big
         layers (long walks out there drift further)."""
@@ -797,6 +813,7 @@ class Navigator:
         """Walk forward `blocks` with W (E held). Returns None, or "empty",
         "done", "lost" if building should stop."""
         duration = blocks * self.spb
+        self.goal_hit = False
         moved = 0.0  # time actually moving: blocked moments don't count as distance
         last = time.time()
         prev = None
@@ -829,6 +846,7 @@ class Navigator:
                         v = pos[0] if axis == "x" else pos[1]
                         ahead = 1 if key in ("d", "w") else -1
                         if (target - v) * ahead <= C.ARRIVE_BLOCKS:
+                            self.goal_hit = True
                             return None
                         duration = max(duration, moved + abs(target - v) * self.spb * 1.5)
                 if edge_stop and self.edge_close(img, {"w": "top", "s": "bottom",
@@ -907,7 +925,8 @@ class Navigator:
             # only legs heading close to the outer edge watch for it (the built
             # square's own edge in the middle looks the same and must not count)
             near_edge = min(target - lo, hi - target) < C.EDGE_WATCH_BLOCKS
-            status = self.walk(dist, state, check_lost=check_lost, key=key,
+            start = self.x if axis == "x" else self.y
+            status = self.walk(dist * self.leg_scale(key), state, check_lost=check_lost, key=key,
                                edge_stop=check_lost and self.top_view and near_edge,
                                goal=(axis, target))
             if status:
@@ -916,8 +935,11 @@ class Navigator:
                 self.x = target
             else:
                 self.y = target
-            if self.top_view:
-                self.locate_by_sign()  # correct drift whenever the sign is in view
+            if self.top_view and self.locate_by_sign() and dist >= 8 and not self.goal_hit:
+                # the sign shows where we really got to: learn how far legs in
+                # this direction really go, so long walks stop overshooting
+                actual = abs((self.x if axis == "x" else self.y) - start)
+                self.learn_leg(key, dist, actual)
         return None
 
     # ---------- main ----------
