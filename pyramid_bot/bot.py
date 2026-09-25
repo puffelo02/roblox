@@ -76,6 +76,25 @@ class Bot:
         self.c.hold("d", 0.5)
         return True
 
+    def wait_for_new_pyramid(self):
+        """Pyramid finished: fill up at BLOCKS, then wait there for the reset
+        timer (about 3 minutes) until the progress bar shows a block count again."""
+        log.info("pyramid complete %s: refilling, then waiting for the new one", self.last_counter)
+        self.nav.camera_normal()
+        if self.go_to_blocks():
+            self.pick_up()
+        waited = 0
+        while True:
+            cur = self.v.read_counter(self.v.grab())
+            if cur and cur[0] < cur[1]:
+                log.info("new pyramid: %s/%s, building again", *cur)
+                self.last_counter = cur
+                return
+            if waited % 60 == 0:
+                log.info("waiting for the pyramid to reset (%ds)", waited)
+            self.c.sleep(5)
+            waited += 5
+
     def pyramid_done(self):
         return self.last_counter is not None and self.last_counter[0] >= self.last_counter[1]
 
@@ -533,8 +552,7 @@ class Bot:
             while True:
                 self.counter()
                 if self.pyramid_done():
-                    log.info("pyramid complete: %s", self.last_counter)
-                    self.c.sleep(5)
+                    self.wait_for_new_pyramid()
                     continue
                 if not self.go_to_blocks():
                     continue

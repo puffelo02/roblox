@@ -27,7 +27,12 @@ class Controls:
         elif name == C.PAUSE_KEY:
             self.paused = not self.paused
             if self.paused:
+                self.resume_keys = set(self.held)  # E etc.: pressed again on resume
                 self.release_all()
+            else:
+                for k in getattr(self, "resume_keys", ()):
+                    self.down(k)
+                self.resume_keys = set()
             print("PAUSED" if self.paused else "RESUMED")
 
     def check(self):
