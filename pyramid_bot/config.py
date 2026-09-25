@@ -40,8 +40,8 @@ PYRAMID_SIGN_ARRIVED_PIXELS = 8000  # sign this big on screen = we're at the plo
 # --- Movement timings (seconds) ---
 # TIP: lower your Walk Speed in game (the pencil icon) to something like 100-200.
 # At 1800 the character moves too far per key tap to control precisely.
-TURN_90_SEC = 0.45        # how long to hold an arrow key to turn the camera 90 degrees
-TURN_180_SEC = 0.90
+TURN_90_SEC = 0.79        # how long to hold an arrow key to turn the camera 90 degrees (measured)
+TURN_180_SEC = 1.58
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.03    # sign within +-3% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
@@ -213,3 +213,5 @@ CUBE_TOP_HSV = ((37, 60, 90), (62, 255, 255))  # top view: the cube (cacti are a
 FAR_BLOCKS_MAX_Y = 900     # the far BLOCKS sign can be low on screen when seen from high up
 DEFAULT_SEC_PER_BLOCK = 0.045  # new PC, nothing measured yet: seconds per block at...
 DEFAULT_WALKSPEED = 64           # ...this Walk Speed (from real runs)
+HALF_FOV_DEG = 51          # Roblox camera: half the screen width is about this many degrees
+SIGN_LOST_WALK_CHECKS = 14 # BLOCKS sign out of render distance: keep walking this many steps first

@@ -153,10 +153,14 @@ class Bot:
         return True
 
     def face_sign(self, which, max_turns=1.0, strict=False):
-        """Turn the camera (standing still) until the sign is in view. True if found."""
-        step = C.TURN_90_SEC / 4
+        """Turn the camera (standing still) until the sign is in view, then turn
+        once so it's straight ahead. That direction is kept even if the sign
+        flickers out right after (far signs sit at the edge of render distance).
+        True if found."""
+        t90 = self.nav.turn90  # measured on this PC
+        step = t90 / 4
         turned = 0.0
-        while turned < C.TURN_90_SEC * 4 * max_turns:
+        while turned < t90 * 4 * max_turns:
             self.c.check()
             img = self.v.grab()
             if self.close_menu(img):
@@ -167,14 +171,14 @@ class Bot:
             if off is None and which == "pyramid" and not strict and self.pyramid_ahead(img):
                 return True  # staircase right ahead, sign hidden behind the UI
             if off is not None:
-                if abs(off) < C.FACE_SIGN_OK:
-                    return True
-                # in view but off to the side: small turn toward it
-                (self.c.turn_left if off < 0 else self.c.turn_right)(
-                    min(step, abs(off) * C.TURN_90_SEC * 0.5))
-                turned += step / 4
-                self.c.sleep(0.1)
-                continue
+                if abs(off) >= C.FACE_SIGN_OK:
+                    # one turn that brings it to the middle (half the screen is
+                    # about HALF_FOV_DEG degrees)
+                    (self.c.turn_left if off < 0 else self.c.turn_right)(
+                        abs(off) * C.HALF_FOV_DEG / 90 * t90)
+                    self.c.sleep(0.15)
+                log.info("%s sign found: heading that way", which)
+                return True
             self.c.turn_right(step)
             turned += step
             self.c.sleep(0.1)
@@ -242,11 +246,14 @@ class Bot:
                 self.c.hold("w", C.WALK_STEP_SEC)  # close sign just went out of view: keep going
                 continue
             if offset is None and strafe:
-                if missing >= C.SIGN_GONE_CHECKS:
+                # far signs flicker in and out of render distance: keep walking
+                # the way we're facing for a while before looking around again
+                if missing >= (C.SIGN_LOST_WALK_CHECKS if which == "blocks" else C.SIGN_GONE_CHECKS):
                     self.face_sign(which)  # lost it: look around standing still
                     missing = 0
-                else:
-                    self.c.hold("w", C.WALK_STEP_SEC)
+                elif self.walk_step_blocked(C.WALK_STEP_SEC):
+                    log.info("blocked on the way to %s, jumping over it", which)
+                    self.c.jump_forward()  # e.g. the pyramid in the way: climb over
                 continue
             if offset is None:
                 # not in view: spin the camera to look for it
