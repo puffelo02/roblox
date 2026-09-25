@@ -115,7 +115,7 @@ class Navigator:
         """Measure our position from the top layer's edges seen from above.
         Fixes self.x / self.y for every axis an edge is visible on. Returns the
         number of axes fixed."""
-        strips = self.v.border_strips(self.v.grab())
+        strips = self.near_strips()
         if not strips:
             return 0
         lo, hi = completed - 1, self.base - (completed - 1)  # top finished layer
@@ -141,6 +141,33 @@ class Navigator:
             log.info("seen from above: %s -> at (%.1f, %.1f)",
                      ", ".join("%s %d" % kv for kv in strips.items()), self.x, self.y)
         return len(fixed)
+
+    def near_strips(self):
+        """Edges seen from above, keeping only close ones (far detections were
+        often shadows / signs, not the pyramid's edge)."""
+        cx, cy = C.CHAR_POS
+        lim = C.EDGE_TRUST_BLOCKS * self.ppb
+        out = {}
+        for side, pos in self.v.border_strips(self.v.grab()).items():
+            d = abs(pos - (cx if side in ("left", "right") else cy))
+            if d <= lim:
+                out[side] = pos
+        return out
+
+    def go_to_corner_from_above(self):
+        """Walk left until the left edge is close, then down until the bottom edge
+        is close: the L of the bottom-left corner."""
+        step = 0.25 * self.speed_factor
+        for key, side in (("a", "left"), ("s", "bottom")):
+            for _ in range(C.CORNER_WALK_MAX_STEPS):
+                self.c.check()
+                if side in self.near_strips():
+                    break
+                self.c.hold(key, step)
+            else:
+                log.warning("no %s edge found walking %s", side, key)
+                return False
+        return True
 
     def calibrate_scale(self):
         """Pixels per block from above: slide a known distance and see how far a
@@ -394,13 +421,9 @@ class Navigator:
         self.camera_top()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
+        # walk to the bottom-left corner looking down, then measure there
+        self.go_to_corner_from_above()
         axes = self.locate(completed)
-        # no edge in view: walk back toward the side we came up until one shows
-        tries = 0
-        while axes == 0 and tries < 15:
-            self.c.hold("s", 0.3 * self.speed_factor)
-            axes = self.locate(completed)
-            tries += 1
         if axes == 0:
             log.warning("no pyramid edge seen from above")
             self.camera_normal()

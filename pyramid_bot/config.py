@@ -79,7 +79,7 @@ MAX_RECOVERIES = 3        # turn-back attempts before walking to the PYRAMID sig
 # start once with:  python run.py --recalibrate
 CALIBRATION_FILE = "calibration.json"   # measured values, kept between updates
 LANE_BLOCKS = 2.5         # blocks between spiral passes (needs place range >= half of this + margin)
-EDGE_INSET = 2.0          # outermost lap this far from the layer edge (room for small errors)
+EDGE_INSET = 3.0          # outermost lap this far from the layer edge (room for small errors)
 # corner by sight: where the step edges end on screen
 CORNER_BAND = (380, 580)      # rows (1080p) where the step edges show (above the feet)
 CORNER_LOW_BAND = 60          # px: edges this close to the lowest one count as the base
@@ -124,6 +124,8 @@ PX_PER_BLOCK = 12.8       # top-down scale at full zoom-out (re-measured when po
 TILT_DRAG_PX = 700        # right-drag this far down to look straight down
 UNTILT_DRAG_PX = 420      # drag back up this far for the normal view
 ZOOM_OUT_SEC = 1.5        # hold O to zoom out fully
+EDGE_TRUST_BLOCKS = 8     # only trust edges seen this close (far ones were shadows/signs)
+CORNER_WALK_MAX_STEPS = 120  # steps toward the left/bottom edge before giving up
 BASE_OFFSET_BLOCKS = 0    # blocks between the strip's inner edge and the pyramid base
 
 # --- Loop ---
