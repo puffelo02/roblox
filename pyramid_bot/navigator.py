@@ -501,6 +501,8 @@ class Navigator:
         tx = C.CHAR_POS[0] + C.SIGN_MIDDLE_OFFSET[0]
         ty = C.CHAR_POS[1] + C.SIGN_MIDDLE_OFFSET[1]
         mid = self.base / 2
+        if abs(sign[0] - tx) > C.SIGN_TRUST_PX or abs(sign[1] - ty) > C.SIGN_TRUST_PX:
+            return False  # far from the sign the view is too slanted to trust
         x, y = mid - (sign[0] - tx) / self.ppb, mid + (sign[1] - ty) / self.ppb
         if not (0 <= x <= self.base and 0 <= y <= self.base):
             return False  # nonsense: not a top-down view of our sign
@@ -508,6 +510,49 @@ class Navigator:
             log.info("sign says (%.1f, %.1f), thought (%.1f, %.1f)", x, y, self.x, self.y)
         self.x, self.y = x, y
         return True
+
+    def cleanup_top(self, state, lo, hi):
+        """Last few blocks of a layer, still looking straight down: walk to the
+        green cube whenever one is in view, else keep lapping near the edges.
+        Returns "layer" when the layer is finished, or "empty"/"done"/"lost"."""
+        laps = G.ring(lo, hi, C.EDGE_LAP_INSETS[1], (self.x, self.y))
+        li = 0
+        end = time.time() + C.CLEANUP_SEC
+        start_layer = G.layer_info(state["last_n"], self.base)[0]
+        while time.time() < end:
+            self.c.check()
+            img = self.v.grab()
+            if self.b.close_menu(img):
+                self.c.down("e")
+                continue
+            cur = self.b.counter(img)
+            if cur:
+                if cur[0] > state["last_n"]:
+                    state["last_n"] = cur[0]
+                    end = max(end, time.time() + 8)  # still placing: keep going
+                if G.layer_info(cur[0], self.base)[0] > start_layer:
+                    log.info("layer finished!")
+                    state["layer"] = G.layer_info(cur[0], self.base)[0]
+                    return "layer"
+            if self.b.pyramid_done():
+                return "done"
+            if self.b.empty():
+                return "empty"
+            cube = self.v.cube_top(img)
+            if cube is not None:
+                dx, dy = cube[0] / self.ppb, -cube[1] / self.ppb  # blocks, +y = up
+                ax, d = ("x", dx) if abs(dx) >= abs(dy) else ("y", dy)
+                key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
+                self.c.hold(key, max(0.3, min(abs(d), 6)) * self.spb)
+                continue
+            # nothing in view: next point along a lap near the edges
+            tx, ty = laps[li % len(laps)]
+            li += 1
+            status = self.walk_to(tx, ty, state, check_lost=False)
+            if status in ("empty", "done", "layer"):
+                return status
+        log.info("couldn't finish the layer's last blocks")
+        return "lost"
 
     def measure_scale(self, img, completed):
         """Standing in the middle, the left and right edges of the finished layer
@@ -744,9 +789,14 @@ class Navigator:
                 else:
                     log.info("layer %d still has %d missing: following the cube",
                              completed + 1, side * side - placed)
-                    self.c.up("e")
-                    self.b.build(max_sec=C.CLEANUP_SEC, climb_first=False)
-                    return "lost"  # position unknown now: re-anchor on the next trip
+                    status = self.cleanup_top(state, lo, hi)
+                    if status == "layer":
+                        self.c.hold("space", C.JUMP_HOLD_SEC)  # up onto the new layer
+                        passes.pop(completed, None)
+                        edge_walked.discard(completed)
+                        lost_restarts = 0
+                        continue  # next layer: back under the A, new spiral
+                    return status
                 state["layer"] = completed
                 for i, (tx, ty) in enumerate(path):
                     # the first leg crosses the finished middle: nothing to place there

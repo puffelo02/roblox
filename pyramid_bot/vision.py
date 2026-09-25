@@ -239,13 +239,47 @@ class Vision:
         m = cv2.dilate(m, np.ones((9, 25), np.uint8))
         n, _, st, cen = cv2.connectedComponentsWithStats(m)
         best = None
+        H, W = m.shape
         for i in range(1, n):
             x, y, w, h, area = st[i]
             if w < C.SIGN_TOP_MIN_W * self.sx or w < 3 * h:
                 continue
+            if x <= 2 or y <= 2 or x + w >= W - 2 or y + h >= H - 2:
+                continue  # cut off by the screen edge: centre would be wrong
             if best is None or area > best[0]:
                 best = (area, cen[i][0] / self.sx, cen[i][1] / self.sy)
         return None if best is None else (best[1], best[2])
+
+    def cube_top(self, img):
+        """Top-down view: the green placement cube nearest the character, as
+        (dx, dy) pixels from it, or None. The PYRAMID sign (also green) and the
+        HUD are ignored."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, *C.INDICATOR_HSV)
+        for x1, y1, x2, y2 in C.STRIP_HUD_MASKS:
+            mask[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)] = 0
+        # blank the sign: big green blob of letters
+        sign = cv2.dilate(cv2.inRange(hsv, (40, 120, 120), (85, 255, 255)), np.ones((9, 25), np.uint8))
+        n, lab, st, _ = cv2.connectedComponentsWithStats(sign)
+        for i in range(1, n):
+            x, y, w, h, _a = st[i]
+            if w >= C.SIGN_TOP_MIN_W * self.sx and w >= 3 * h:
+                mask[max(0, y - 20):y + h + 20, max(0, x - 20):x + w + 20] = 0
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        n, _, stats, cents = cv2.connectedComponentsWithStats(mask)
+        cx, cy = C.CHAR_POS
+        best = None
+        for i in range(1, n):
+            area = stats[i][cv2.CC_STAT_AREA] / (self.sx * self.sy)
+            if not (C.CUBE_TOP_MIN_AREA <= area <= C.INDICATOR_MAX_AREA):
+                continue
+            dx, dy = cents[i][0] / self.sx - cx, cents[i][1] / self.sy - cy
+            d = (dx * dx + dy * dy) ** 0.5
+            if d < C.CUBE_TOP_UNDER_PX:
+                continue  # right under us: E is held, it gets placed anyway
+            if best is None or d < best[2]:
+                best = (dx, dy, d)
+        return None if best is None else (best[0], best[1])
 
     def border_strips(self, img):
         """Top-down view: the dark strip around the pyramid's base. Returns the

@@ -78,7 +78,7 @@ MAX_RECOVERIES = 3        # turn-back attempts before walking to the PYRAMID sig
 # Set your Walk Speed to 30 in game (lower = more precise). If you change it,
 # start once with:  python run.py --recalibrate
 CALIBRATION_FILE = "calibration.json"   # measured values, kept between updates
-LANE_BLOCKS = 2.5         # blocks between spiral passes (needs place range >= half of this + margin)
+LANE_BLOCKS = 3.5         # blocks between spiral passes (needs place range >= half of this + margin)
 EDGE_INSET = 3.0          # outermost lap this far from the layer edge (room for small errors)
 # corner by sight: where the step edges end on screen
 CORNER_BAND = (380, 580)      # rows (1080p) where the step edges show (above the feet)
@@ -110,7 +110,7 @@ REANCHOR_EXTRA = 12       # walk this many blocks past the estimated edge when g
 MAX_MIDDLE_RESTARTS = 12  # times in a row to go back to the middle before giving up the trip
 LOST_SEC = 8              # nothing placed, no cube, layer far from done = lost
 EDGE_LAP_INSETS = (0.7, 1.7)  # laps this far from the edge to pick up missed blocks
-CLEANUP_SEC = 25          # follow the cube this long when a layer has a few missed spots
+CLEANUP_SEC = 60          # follow the cube this long when a layer has a few missed spots
 CLEANUP_BELOW = 0.12      # under 12% missing (all near the edges): edge laps + cube
 
 # --- Top-down position (camera looking straight down on the pyramid) ---
@@ -165,3 +165,6 @@ EDGE_WATCH_BLOCKS = 10   # spiral legs ending this close to the edge watch for i
 SIGN_MIDDLE_OFFSET = (2, -50)
 SIGN_TOL = 0.6            # blocks
 SIGN_TOP_MIN_W = 120      # px: narrower green things are not the sign
+SIGN_TRUST_PX = 330       # only fix the position from the sign when it's this close to its spot
+CUBE_TOP_MIN_AREA = 25    # px: the green cube looks small from above
+CUBE_TOP_UNDER_PX = 18   # a cube this close is the one under our feet
