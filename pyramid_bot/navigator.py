@@ -470,10 +470,11 @@ class Navigator:
                     h = half if d > blob + 1 else blob
                     away = (1 if side == a else -1) * sgn  # direction away from it
                     need[axis] = away * max(0.0, h - d)
-            if not strips and i < blind:
-                # nothing in view yet: we came up the front side, the middle is ahead
-                log.info("to the middle: nothing in view, walking ahead")
-                self.step_jump("w", 6 * self.spb)
+            if i < blind:
+                # sign not in view yet: we came up the front side, the middle is
+                # straight ahead (edges here are too easily confused with shadows)
+                log.info("to the middle: sign not in view yet, walking ahead")
+                self.step_jump("w", 5 * self.spb)
                 continue
             log.info("to the middle: edges %s -> move %s",
                      ", ".join("%s %d" % kv for kv in strips.items()) or "none",

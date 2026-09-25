@@ -171,6 +171,6 @@ CUBE_TOP_UNDER_PX = 18   # a cube this close is the one under our feet
 ARRIVE_BLOCKS = 0.5       # a leg is done this close to its end (seen from the sign)
 WALL_SIGN_FAR_PX = 1500   # pyramid sign smaller than this (and low on screen) = still far away
 WALL_SIGN_FAR_Y = 150
-MIDDLE_BLIND_STEPS = 4    # walk ahead (6 blocks) at most this many times when nothing is in view
+MIDDLE_BLIND_STEPS = 8    # after climbing: walk ahead (5 blocks) up to this many times until the sign shows
 TOP_ALIGN_OK_DEG = 1.5   # top view: edges this close to level = camera square
 FAR_SIGN_MIN_PIXELS = 12  # the PYRAMID sign from far away (tiny thin text in the sky)
