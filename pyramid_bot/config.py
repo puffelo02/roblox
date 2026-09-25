@@ -202,3 +202,5 @@ MIDDLE_GAIN = 0.6         # move this share of the way to the A per step (no ove
 FELL_OFF_CHECKS = 3       # sign missing this many checks in a row before looking for stairs
 PYRAMID_AHEAD_ROWS = 6    # stair lines straight ahead = the pyramid is right there
 WALK_INTO_MAX_STEPS = 20
+BASEPLATE_MAX_SAT = 100   # grey stone: low colour saturation
+BASEPLATE_SHARE = 0.75    # this much of the ground around us is grey stone = on the baseplate

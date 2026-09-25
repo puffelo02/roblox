@@ -196,6 +196,9 @@ class Bot:
             offset, pixels = self.v.find_sign(img, which)
             if which == "pyramid" and offset is None and self.pyramid_ahead(img):
                 return self.walk_into_pyramid()
+            if which == "pyramid" and self.v.on_baseplate(img):
+                log.info("standing on the pyramid's baseplate: arrived")
+                return True
             if arrived(img, pixels):
                 log.info("arrived at %s", which)
                 return True

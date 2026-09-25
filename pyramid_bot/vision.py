@@ -214,6 +214,14 @@ class Vision:
                 rows.append(y)
         return len(rows)
 
+    def on_baseplate(self, img):
+        """Normal camera: the grey stone baseplate of a new pyramid fills the
+        whole ground around us (the path is only a narrow grey strip)."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        h, w = hsv.shape[:2]
+        band = hsv[int(h * 0.6):int(h * 0.92), int(w * 0.2):int(w * 0.95), 1]
+        return float((band < C.BASEPLATE_MAX_SAT).mean()) > C.BASEPLATE_SHARE
+
     def stairs_ahead(self, img):
         """Normal camera: number of long horizontal step lines in front of (above
         on screen) the character. 0-1 = flat ground ahead: we're on top."""
