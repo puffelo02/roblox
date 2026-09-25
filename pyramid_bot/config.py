@@ -158,7 +158,7 @@ SAVE_SCREENSHOTS = True
 MIDDLE_MAX_STEPS = 25     # pictures/steps at most
 MIDDLE_TOL = 2.0          # blocks: close enough to the middle
 MIDDLE_STEP_BLOCKS = 12   # longest step between two pictures
-EDGE_HIT_BLOCKS = 4.0     # an edge this close = "hit the edge": back to the middle
+EDGE_HIT_BLOCKS = 7.0     # an edge this close = "hit the edge": back to the middle
 EDGE_WATCH_BLOCKS = 15   # spiral legs ending this close to the edge watch for it
 # the PYRAMID sign seen from above hangs over the middle: standing right under
 # its "A" = standing in the middle. Sign centre relative to the character:

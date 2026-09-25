@@ -271,6 +271,12 @@ class Bot:
                 blocked += 1
                 if blocked >= 2:
                     blocked = 0
+                    if which == "pyramid":
+                        # a one-block step (low/wide pyramid): jump onto it and keep going
+                        self.c.jump_forward()
+                        if not self.walk_step_blocked(0.2):
+                            log.info("jumped up a step toward the pyramid sign")
+                            continue
                     if stop_when_blocked:
                         if self.at_pyramid_wall():
                             log.info("blocked by the pyramid wall: arrived")

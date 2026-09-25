@@ -927,7 +927,7 @@ class Navigator:
             lo, hi = self.completed - 1, self.base - (self.completed - 1)
             # only legs heading close to the outer edge watch for it (the built
             # square's own edge in the middle looks the same and must not count)
-            near_edge = min(target - lo, hi - target) < C.EDGE_WATCH_BLOCKS
+            near_edge = min(target - lo, hi - target) < self.spiral_inset(hi - lo) + C.EDGE_WATCH_BLOCKS
             start = self.x if axis == "x" else self.y
             status = self.walk(dist * self.leg_scale(key), state, check_lost=check_lost, key=key,
                                edge_stop=check_lost and self.top_view and near_edge,
