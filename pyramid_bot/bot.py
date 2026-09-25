@@ -589,6 +589,7 @@ class Bot:
         log.info("starting in 5 seconds: click on the Roblox window now")
         time.sleep(5)
         try:
+            self.nav.measure_if_needed()
             while True:
                 self.counter()
                 if self.pyramid_done():

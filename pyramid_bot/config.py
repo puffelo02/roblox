@@ -105,7 +105,7 @@ ALIGN_OK_DEG = 0.7        # edges within this angle = camera is square
 ALIGN_GAIN = 0.6          # how much of the measured error to correct per try
 ALIGN_MAX_ITER = 8
 ALIGN_ON_PYRAMID_MAX_DEG = 6  # on top, only trust small corrections
-TURN_CAL_MAX_SEC = 12     # longest camera spin when measuring a full turn
+TURN_CAL_MAX_SEC = 9      # longest camera spin when measuring a full turn
 REANCHOR_EXTRA = 12       # walk this many blocks past the estimated edge when going down
 MAX_MIDDLE_RESTARTS = 12  # times in a row to go back to the middle before giving up the trip
 LOST_SEC = 8              # nothing placed, no cube, layer far from done = lost
@@ -215,3 +215,4 @@ DEFAULT_SEC_PER_BLOCK = 0.045  # new PC, nothing measured yet: seconds per block
 DEFAULT_WALKSPEED = 64           # ...this Walk Speed (from real runs)
 HALF_FOV_DEG = 51          # Roblox camera: half the screen width is about this many degrees
 SIGN_LOST_WALK_CHECKS = 14 # BLOCKS sign out of render distance: keep walking this many steps first
+TURN_CAL_MIN_SEC = 1.0     # a full camera turn can't be faster than this

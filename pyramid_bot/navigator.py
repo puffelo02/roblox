@@ -74,7 +74,7 @@ class Navigator:
                 d = self.v.scene_diff(start, self.v.scene_small(self.v.grab()))
                 t = time.time() - t0
                 maxd = max(maxd, d)
-                if t > 0.5 and maxd > 3 and d < 0.35 * maxd:
+                if t > C.TURN_CAL_MIN_SEC and maxd > 3 and d < 0.35 * maxd:
                     if best is None or d < best[0]:
                         best = (d, t)
                 if best and d > best[0] + 0.2 * maxd:
@@ -83,12 +83,31 @@ class Navigator:
             self.c.up("right")
         stop = time.time() - t0
         if not best:
-            log.warning("couldn't measure the camera turn, using TURN_90_SEC=%.2f", self.turn90)
-            return
+            log.warning("couldn't measure the camera turn, using %.2fs per 90 degrees", self.turn90)
+            return False
         t360 = best[1]
         self.c.turn_left(max(0.0, stop - t360))  # undo the overshoot
+        if not (C.TURN_CAL_MIN_SEC <= t360 <= C.TURN_CAL_MAX_SEC - 1):
+            log.warning("camera turn measurement looks wrong (%.2fs for a full turn)", t360)
+            return False
         self.cal["turn90"] = round(t360 / 4, 4)
+        log.info("camera turn measured: %.2fs for a full turn = %.3fs per 90 degrees",
+                 t360, self.cal["turn90"])
         self._save_cal()
+        return True
+
+    def measure_if_needed(self):
+        """First run on this PC: measure what the bot needs before playing.
+        (Walk speed, time per block and screen scale are measured on the go.)"""
+        self.check_walkspeed()
+        if "turn90" not in self.cal:
+            log.info("first run on this PC: measuring the camera turn speed")
+            self.reset_camera()
+            for _ in range(2):
+                if self.calibrate_turn():
+                    break
+            self.reset_camera()
+        log.info("calibration: %s", self.cal)
 
     # ---------- top-down view ----------
     def camera_top(self):
