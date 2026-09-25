@@ -425,32 +425,81 @@ class Navigator:
         self.speed_factor = 30 / ws  # slide steps scaled to speed (tuned at 30)
         self._save_cal()
 
+    def go_middle(self, completed):
+        """Look down, walk away from whatever edges are in view until we stand in
+        the middle (both axes centred, or no edge in view at all). No position
+        bookkeeping to go wrong: every step is decided from a fresh picture."""
+        half = (self.base - 2 * (completed - 1)) / 2  # top finished layer
+        cx, cy = C.CHAR_POS
+        prev = None
+        for i in range(C.MIDDLE_MAX_STEPS):
+            self.c.check()
+            if self.b.close_menu():
+                continue
+            strips = self.v.border_strips(self.v.grab())
+            need = {}  # blocks to move: +x = D, +y = W
+            for side, pos in strips.items():
+                if side == "right":
+                    need["x"] = (pos - cx) / self.ppb - half
+                elif side == "left":
+                    need["x"] = half - (cx - pos) / self.ppb
+                elif side == "top":
+                    need["y"] = (cy - pos) / self.ppb - half
+                else:
+                    need["y"] = half - (pos - cy) / self.ppb
+            log.info("to the middle: edges %s -> move %s",
+                     ", ".join("%s %d" % kv for kv in strips.items()) or "none",
+                     ", ".join("%s %+.1f" % kv for kv in need.items()) or "nothing")
+            big = {a: d for a, d in need.items() if abs(d) > C.MIDDLE_TOL}
+            if not big:
+                break
+            axis, d = max(big.items(), key=lambda kv: abs(kv[1]))
+            key = ("d" if d > 0 else "a") if axis == "x" else ("w" if d > 0 else "s")
+            if prev and prev.get(axis) is not None and abs(prev[axis] - d) < 1.0:
+                # the last step didn't move us: a step in the way, jump onto it
+                self.c.down(key)
+                self.c.hold("space", C.JUMP_HOLD_SEC)
+                self.c.sleep(0.3)
+                self.c.up(key)
+            self.c.hold(key, min(abs(d), C.MIDDLE_STEP_BLOCKS) * self.spb)
+            self.c.sleep(0.15)
+            prev = need
+        self.x = self.y = self.base / 2
+        return True
+
+    def edge_close(self, img=None, only=None):
+        """True if an edge of the pyramid is right next to us (from above).
+        `only`: just look at the edge on that side (the way we're walking)."""
+        cx, cy = C.CHAR_POS
+        lim = C.EDGE_HIT_BLOCKS * self.ppb
+        if img is None:
+            img = self.v.grab()
+        for side, pos in self.v.border_strips(img).items():
+            if only and side != only:
+                continue
+            if abs(pos - (cx if side in ("left", "right") else cy)) <= lim:
+                log.info("edge %s right next to us", side)
+                return True
+        return False
+
     def anchor(self, completed):
-        """Climb where we are, look straight down and measure our position from
-        the pyramid's edges. Sets self.x / self.y / self.heading."""
-        log.info("anchoring: climb, then look down to measure")
+        """Climb where we are, look straight down and walk to the middle."""
+        log.info("anchoring: climb, look down, walk to the middle")
         self.check_walkspeed()
         self.completed = completed
         self.align()
         self.climb_layers(completed)
         self.heading = 0
-        self.x = self.y = self.base / 2  # until measured
         self.camera_top()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
-        # we came up the bottom side: its edge gives y; walk right until the
-        # right edge is close for x. Then head for the middle.
-        axes = self.find_edges_from_above()
-        if axes == 0:
-            log.warning("no pyramid edge seen from above")
-            self.camera_normal()
-            return False
         self.v.save(self.v.grab(), "top_view")
-        log.info("anchored at (%.1f, %.1f)", self.x, self.y)
+        self.go_middle(completed)
+        log.info("in the middle")
         return True
 
     # ---------- walking with E held ----------
-    def walk(self, blocks, state, check_lost=True, key="w"):
+    def walk(self, blocks, state, check_lost=True, key="w", edge_stop=False):
         """Walk forward `blocks` with W (E held). Returns None, or "empty",
         "done", "lost" if building should stop."""
         duration = blocks * self.spb
@@ -478,6 +527,9 @@ class Navigator:
                     self.c.down("e")
                     self.c.down(key)
                     continue
+                if edge_stop and self.edge_close(img, {"w": "top", "s": "bottom",
+                                                       "a": "left", "d": "right"}[key]):
+                    return "edge"
                 scene = self.v.scene_small(img)
                 if prev is not None and self.v.scene_diff(prev, scene) < C.BLOCKED_DIFF:
                     blocked += 1
@@ -534,22 +586,21 @@ class Navigator:
     def walk_to(self, tx, ty, state, check_lost=True):
         """Move to (tx, ty). On top the camera looks straight down and is never
         turned, so screen directions are pyramid directions: W = +y (up on
-        screen), S = -y, D = +x, A = -x. Position is re-measured after each leg."""
+        screen), S = -y, D = +x, A = -x. Returns "edge" if an edge is right next to us."""
         moves = []
         if abs(tx - self.x) > 0.3:
             moves.append(("d" if tx > self.x else "a", abs(tx - self.x), "x", tx))
         if abs(ty - self.y) > 0.3:
             moves.append(("w" if ty > self.y else "s", abs(ty - self.y), "y", ty))
         for key, dist, axis, target in moves:
-            status = self.walk(dist, state, check_lost=check_lost, key=key)
+            status = self.walk(dist, state, check_lost=check_lost, key=key,
+                               edge_stop=check_lost and self.top_view)
             if status:
                 return status
             if axis == "x":
                 self.x = target
             else:
                 self.y = target
-            if self.top_view:
-                self.locate(self.completed)
         return None
 
     # ---------- main ----------
@@ -588,18 +639,13 @@ class Navigator:
                 spiral = tries == 0 or (left >= C.CLEANUP_BELOW and tries < 3)
                 if (spiral and outward_done) or (not spiral and completed not in edge_fixed):
                     # after an inward+outward pair, or before edge laps: fix drift
-                    status = self.reanchor(completed, state)
-                    if status:
-                        return status
                     outward_done = False
                     if not spiral:
                         edge_fixed.add(completed)
                 if spiral:
                     # start from the middle and spiral outward (your method)
                     mid = (lo + hi) / 2
-                    status = self.walk_to(mid, mid, state, check_lost=False)
-                    if status:
-                        return status
+                    self.go_middle(completed)
                     path, kind = G.pick_path((mid, mid), lo, hi, C.LANE_BLOCKS, C.EDGE_INSET)
                     # the middle fills first: skip laps inside the part already built
                     r0 = (1 - left) ** 0.5 * side / 2 - C.LANE_BLOCKS
@@ -626,17 +672,17 @@ class Navigator:
                 state["layer"] = completed
                 for i, (tx, ty) in enumerate(path):
                     # the first leg crosses the finished middle: nothing to place there
-                    status = self.walk_to(tx, ty, state, check_lost=i > 0)
+                    status = self.walk_to(tx, ty, state, check_lost=i > 0 and spiral)
                     if i == 0:
                         state["last_rise"] = state["last_cube"] = time.time()
-                    if status == "lost" and self.top_view and lost_restarts < C.MAX_MIDDLE_RESTARTS:
-                        # confused or at an edge: look again and start over from the middle
+                    if status in ("lost", "edge") and self.top_view and lost_restarts < C.MAX_MIDDLE_RESTARTS:
+                        # at an edge or nothing to place: start over from the middle
                         lost_restarts += 1
-                        log.info("nothing placed for a while: back to the middle (%d)", lost_restarts)
-                        self.locate(self.completed)
+                        log.info("%s: back to the middle (%d)",
+                                 "hit an edge" if status == "edge" else "nothing placed for a while",
+                                 lost_restarts)
                         now = time.time()
                         state["last_rise"] = state["last_cube"] = now
-                        passes[completed] = 0
                         break
                     if status == "layer":
                         # next layer: hop up onto it and plan a new, smaller spiral
@@ -645,6 +691,6 @@ class Navigator:
                         lost_restarts = 0
                         break
                     if status:
-                        return status
+                        return "lost" if status == "edge" else status
         finally:
             self.c.up("e")

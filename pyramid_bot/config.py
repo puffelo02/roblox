@@ -107,7 +107,7 @@ ALIGN_MAX_ITER = 8
 ALIGN_ON_PYRAMID_MAX_DEG = 6  # on top, only trust small corrections
 TURN_CAL_MAX_SEC = 12     # longest camera spin when measuring a full turn
 REANCHOR_EXTRA = 12       # walk this many blocks past the estimated edge when going down
-MAX_MIDDLE_RESTARTS = 3   # times in a row to go back to the middle before giving up the trip
+MAX_MIDDLE_RESTARTS = 12  # times in a row to go back to the middle before giving up the trip
 LOST_SEC = 8              # nothing placed, no cube, layer far from done = lost
 EDGE_LAP_INSETS = (0.7, 1.7)  # laps this far from the edge to pick up missed blocks
 CLEANUP_SEC = 25          # follow the cube this long when a layer has a few missed spots
@@ -153,3 +153,9 @@ PAUSE_KEY = "f7"
 # --- Debug ---
 DEBUG_DIR = "debug"
 SAVE_SCREENSHOTS = True
+
+# walking to the middle from above
+MIDDLE_MAX_STEPS = 25     # pictures/steps at most
+MIDDLE_TOL = 2.0          # blocks: close enough to the middle
+MIDDLE_STEP_BLOCKS = 12   # longest step between two pictures
+EDGE_HIT_BLOCKS = 2.0     # an edge this close = "hit the edge": back to the middle
