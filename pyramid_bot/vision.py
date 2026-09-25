@@ -281,6 +281,34 @@ class Vision:
                 best = (dx, dy, d)
         return None if best is None else (best[0], best[1])
 
+    def top_angle(self, img):
+        """Top-down view: tilt (degrees) of the pyramid's horizontal edge lines on
+        screen. 0 = camera square to the pyramid. None if no long line is seen.
+        (Only near-horizontal lines: the view's perspective slants the vertical
+        ones even when the camera is square.)"""
+        import math
+        g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        e = cv2.Canny(cv2.GaussianBlur(g, (5, 5), 0), 40, 120)
+        for x1, y1, x2, y2 in C.STRIP_HUD_MASKS:
+            e[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)] = 0
+        e[:int(160 * self.sy), :] = 0
+        lines = cv2.HoughLinesP(e, 1, np.pi / 360, 120,
+                                minLineLength=int(250 * self.sx), maxLineGap=20)
+        if lines is None:
+            return None
+        angs, ws = [], []
+        for x1, y1, x2, y2 in lines.reshape(-1, 4):
+            a = (math.degrees(math.atan2(y2 - y1, x2 - x1)) + 90) % 180 - 90
+            if abs(a) <= 40:
+                angs.append(a)
+                ws.append(math.hypot(x2 - x1, y2 - y1))
+        if not angs:
+            return None
+        order = np.argsort(angs)
+        a, w = np.array(angs)[order], np.array(ws)[order]
+        cum = np.cumsum(w)
+        return float(a[np.searchsorted(cum, cum[-1] / 2)])  # length-weighted median
+
     def border_strips(self, img):
         """Top-down view: the dark strip around the pyramid's base. Returns the
         inner edge of each strip near the character, in 1080p pixels:

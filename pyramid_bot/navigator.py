@@ -425,7 +425,7 @@ class Navigator:
         self.speed_factor = 30 / ws  # slide steps scaled to speed (tuned at 30)
         self._save_cal()
 
-    def go_middle(self, completed):
+    def go_middle(self, completed, blind=0):
         """Look down, walk away from whatever edges are in view until we stand in
         the middle (both axes centred, or no edge in view at all). No position
         bookkeeping to go wrong: every step is decided from a fresh picture."""
@@ -470,10 +470,10 @@ class Navigator:
                     h = half if d > blob + 1 else blob
                     away = (1 if side == a else -1) * sgn  # direction away from it
                     need[axis] = away * max(0.0, h - d)
-            if not strips and i < C.MIDDLE_BLIND_STEPS:
+            if not strips and i < blind:
                 # nothing in view yet: we came up the front side, the middle is ahead
                 log.info("to the middle: nothing in view, walking ahead")
-                self.step_jump("w", 8 * self.spb)
+                self.step_jump("w", 6 * self.spb)
                 continue
             log.info("to the middle: edges %s -> move %s",
                      ", ".join("%s %d" % kv for kv in strips.items()) or "none",
@@ -601,6 +601,29 @@ class Navigator:
         self.c.sleep(max(0.0, sec - C.JUMP_HOLD_SEC))
         self.c.up(key)
 
+    def top_align(self):
+        """From above: turn the camera until the pyramid's edges are square on
+        screen, so W/A/S/D really go along the pyramid's sides."""
+        sign, prev = 1, None
+        for _ in range(C.ALIGN_MAX_ITER):
+            a = self.v.top_angle(self.v.grab())
+            if a is None:
+                log.info("top view: no edge line to square up on")
+                return
+            if abs(a) < C.TOP_ALIGN_OK_DEG:
+                log.info("top view: camera square (%.1f deg)", a)
+                return
+            if prev is not None and abs(a) > abs(prev) + 0.5:
+                sign = -sign  # made it worse: other way round
+            log.info("top view: edges tilted %.1f deg, turning", a)
+            sec = min(0.2, abs(a) / 90 * self.turn90)
+            if a * sign > 0:
+                self.c.turn_right(sec)
+            else:
+                self.c.turn_left(sec)
+            self.c.sleep(0.15)
+            prev = a
+
     def edge_close(self, img=None, only=None):
         """True if an edge of the pyramid is right next to us (from above).
         `only`: just look at the edge on that side (the way we're walking)."""
@@ -625,9 +648,10 @@ class Navigator:
         self.climb_layers(completed)
         self.heading = 0
         self.camera_top()
+        self.top_align()
         if "px_per_block" not in self.cal:
             self.calibrate_scale()
-        self.go_middle(completed)
+        self.go_middle(completed, blind=C.MIDDLE_BLIND_STEPS)
         img = self.v.grab()
         self.v.save(img, "top_view")  # picture from the middle
         self.measure_scale(img, completed)
