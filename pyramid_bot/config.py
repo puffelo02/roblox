@@ -209,3 +209,4 @@ EDGE_LAP_PER_BLOCK = 0.12   # edge-cleanup laps likewise (126 wide: +8)
 JUMP_EVERY_MOVES = 3      # hop every this many moves while searching/centring (gets unstuck)
 APPROACH_BACK_STEPS = 12  # looking down: steps back toward a sign that went over our head
 LOST_SEC_LATE = 20        # late in a layer (edge laps / cleanup): nothing placed this long = fell off
+CUBE_TOP_HSV = ((37, 60, 90), (62, 255, 255))  # top view: the cube (cacti are a duller hue ~36)

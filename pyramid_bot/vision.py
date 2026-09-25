@@ -295,7 +295,7 @@ class Vision:
         (dx, dy) pixels from it, or None. The PYRAMID sign (also green) and the
         HUD are ignored."""
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, *C.INDICATOR_HSV)
+        mask = cv2.inRange(hsv, *C.CUBE_TOP_HSV)
         for x1, y1, x2, y2 in C.STRIP_HUD_MASKS:
             mask[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)] = 0
         # blank the sign: big green blob of letters
