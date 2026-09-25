@@ -51,7 +51,13 @@ class Navigator:
 
     @property
     def spb(self):
-        return self.cal.get("sec_per_block")
+        """Seconds per block. Not measured yet (new PC): a starting value from
+        a real run, scaled to the current Walk Speed; corrected as we walk."""
+        v = self.cal.get("sec_per_block")
+        if v:
+            return v
+        ws = self.cal.get("walkspeed") or C.DEFAULT_WALKSPEED
+        return C.DEFAULT_SEC_PER_BLOCK * C.DEFAULT_WALKSPEED / ws
 
     def calibrate_turn(self):
         """Spin the camera right and time how long until the view looks the same
@@ -477,8 +483,8 @@ class Navigator:
         if not ws:
             return
         # older calibrations didn't store it: they were measured at 30
-        old = self.cal.get("walkspeed", 30 if self.spb else None)
-        if self.spb and old and old != ws:
+        old = self.cal.get("walkspeed", 30 if "sec_per_block" in self.cal else None)
+        if "sec_per_block" in self.cal and old and old != ws:
             self.cal["sec_per_block"] = round(self.spb * old / ws, 5)
             log.info("walk speed changed %s -> %s: time per block now %.4fs", old, ws, self.spb)
         self.cal["walkspeed"] = ws

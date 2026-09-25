@@ -124,7 +124,7 @@ STRIP_BAND_GAP = 220      # check edges this far above/below (left/right) of the
 STRIP_AGREE_PX = 90       # the checks must agree within this (a straight edge; slanted a bit)
 STRIP_SKIP_PX = 160       # ignore this close to the character (its shadow)
 STRIP_MIN_PX = 28         # strip must be at least this wide
-PX_PER_BLOCK = 12.8       # top-down scale at full zoom-out (re-measured when possible)
+PX_PER_BLOCK = 14.2       # top-down scale at full zoom-out (re-measured when possible)
 TILT_DRAG_PX = 700        # right-drag this far down to look straight down
 UNTILT_DRAG_PX = 420      # drag back up this far for the normal view
 ZOOM_OUT_SEC = 1.5        # hold O to zoom out fully
@@ -211,3 +211,5 @@ APPROACH_BACK_STEPS = 12  # looking down: steps back toward a sign that went ove
 LOST_SEC_LATE = 20        # late in a layer (edge laps / cleanup): nothing placed this long = fell off
 CUBE_TOP_HSV = ((37, 60, 90), (62, 255, 255))  # top view: the cube (cacti are a duller hue ~36)
 FAR_BLOCKS_MAX_Y = 900     # the far BLOCKS sign can be low on screen when seen from high up
+DEFAULT_SEC_PER_BLOCK = 0.045  # new PC, nothing measured yet: seconds per block at...
+DEFAULT_WALKSPEED = 64           # ...this Walk Speed (from real runs)
