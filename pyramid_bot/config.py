@@ -177,3 +177,6 @@ FAR_SIGN_MIN_PIXELS = 12  # the PYRAMID sign from far away (tiny thin text in th
 STRAFE_GAIN = 1.2         # sidestep seconds per unit of sign offset (-1..1) on the way to the pyramid
 STRAFE_MAX_SEC = 0.3
 FACE_SIGN_OK = 0.12       # sign this close to the screen centre = facing it
+FAR_SIGN_HSV = ((40, 60, 45), (80, 255, 255))  # sign green incl. the dark letter outline
+FAR_SIGN_Y = (160, 380)   # far away the sign floats just above the horizon
+FAR_SIGN_W = (25, 160)    # px wide
