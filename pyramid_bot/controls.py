@@ -77,6 +77,18 @@ class Controls:
         self.sleep(landing)
         self.up("w")
 
+    def right_drag(self, dy_px, steps=10):
+        """Hold right mouse and move vertically: tilts the Roblox camera
+        (positive = look further down)."""
+        pydirectinput.mouseDown(button="right")
+        try:
+            time.sleep(0.05)
+            for _ in range(steps):
+                pydirectinput.moveRel(0, int(dy_px / steps), relative=True)
+                time.sleep(0.02)
+        finally:
+            pydirectinput.mouseUp(button="right")
+
     def click(self, xy):
         """Roblox ignores a click that arrives together with the mouse move:
         move, wiggle so it registers the hover, then press and release slowly."""

@@ -112,6 +112,20 @@ EDGE_LAP_INSETS = (0.7, 1.7)  # laps this far from the edge to pick up missed bl
 CLEANUP_SEC = 25          # follow the cube this long when a layer has a few missed spots
 CLEANUP_BELOW = 0.08      # "a few" = less than 8% of the layer missing
 
+# --- Top-down position (camera looking straight down on the pyramid) ---
+STRIP_DARK_RATIO = 0.82   # darker than this share of the top's brightness = edge/strip
+STRIP_HUD_MASKS = [(0, 330, 345, 740), (1740, 390, 1920, 680), (640, 0, 1370, 150),
+                   (1420, 40, 1920, 150), (0, 0, 380, 60), (1780, 990, 1920, 1080),
+                   (0, 990, 340, 1080), (1840, 0, 1920, 60)]
+STRIP_BAND = 60           # px around the character's row/column to look for strips
+STRIP_FILL = 0.3          # share of dark pixels for a column/row to count as strip
+STRIP_MIN_PX = 12         # strip must be at least this wide
+PX_PER_BLOCK = 12.8       # top-down scale at full zoom-out (re-measured when possible)
+TILT_DRAG_PX = 700        # right-drag this far down to look straight down
+UNTILT_DRAG_PX = 420      # drag back up this far for the normal view
+ZOOM_OUT_SEC = 1.5        # hold O to zoom out fully
+BASE_OFFSET_BLOCKS = 0    # blocks between the strip's inner edge and the pyramid base
+
 # --- Loop ---
 PICKUP_STALL_SEC = 12      # capacity not rising this long = step to a fresh spot in the pit
 PICKUP_TIMEOUT_SEC = 300   # absolute safety limit

@@ -230,6 +230,52 @@ class Vision:
         return (min(r[0] for r in near) / self.sx,
                 max(r[0] + r[2] for r in near) / self.sx)
 
+    def border_strips(self, img):
+        """Top-down view: the dark strip around the pyramid's base. Returns the
+        inner edge of each strip near the character, in 1080p pixels:
+        {"left": x, "right": x, "top": y, "bottom": y} (only the visible ones)."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        # "clearly darker than the top we stand on": the grey strip and the
+        # shaded sides of the steps both qualify, the lit sand doesn't
+        cx0, cy0 = int(C.CHAR_POS[0] * self.sx), int(C.CHAR_POS[1] * self.sy)
+        around = hsv[max(0, cy0 - 200):cy0 + 200, max(0, cx0 - 300):cx0 + 300, 2]
+        ref = float(np.median(around))
+        m = (hsv[:, :, 2] < ref * C.STRIP_DARK_RATIO).astype(np.uint8) * 255
+        # the green PYRAMID sign's dark letter outlines are not edges
+        green = cv2.inRange(hsv, (40, 80, 80), (85, 255, 255))
+        green = cv2.dilate(green, np.ones((61, 121), np.uint8))
+        m[green > 0] = 0
+        for r in C.STRIP_HUD_MASKS:
+            x1, y1, x2, y2 = self._scale(r)
+            m[y1:y2, x1:x2] = 0
+        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8)) > 0
+        cx, cy = C.CHAR_POS
+        band = C.STRIP_BAND
+        found = {}
+        # vertical strips: look along the character's row band
+        y1, y2 = int((cy - band) * self.sy), int((cy + band) * self.sy)
+        cols = m[y1:y2].mean(axis=0) > C.STRIP_FILL
+        xs = np.flatnonzero(cols)
+        c = int(cx * self.sx)
+        left = xs[xs < c - int(60 * self.sx)]
+        right = xs[xs > c + int(60 * self.sx)]
+        if len(left) >= C.STRIP_MIN_PX * self.sx:
+            found["left"] = left.max() / self.sx
+        if len(right) >= C.STRIP_MIN_PX * self.sx:
+            found["right"] = right.min() / self.sx
+        # horizontal strips: along the character's column band
+        x1, x2 = int((cx - band) * self.sx), int((cx + band) * self.sx)
+        rows = m[:, x1:x2].mean(axis=1) > C.STRIP_FILL
+        ys = np.flatnonzero(rows)
+        r = int(cy * self.sy)
+        top = ys[ys < r - int(60 * self.sy)]
+        bottom = ys[ys > r + int(60 * self.sy)]
+        if len(top) >= C.STRIP_MIN_PX * self.sy:
+            found["top"] = top.max() / self.sy
+        if len(bottom) >= C.STRIP_MIN_PX * self.sy:
+            found["bottom"] = bottom.min() / self.sy
+        return found
+
     def screen_point(self, xy):
         return (
             self.monitor["left"] + int(xy[0] * self.sx),

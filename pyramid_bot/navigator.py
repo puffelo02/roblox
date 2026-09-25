@@ -28,6 +28,8 @@ class Navigator:
         self.heading = 0  # 0 = +y (into the pyramid), 90 = +x (right), 180, 270
         self.base = None
         self.speed_factor = 1.0
+        self.top_view = False
+        self.completed = 0
 
     # ---------- calibration ----------
     @staticmethod
@@ -82,6 +84,82 @@ class Navigator:
         self.cal["turn90"] = round(t360 / 4, 4)
         self._save_cal()
 
+    # ---------- top-down view ----------
+    def camera_top(self):
+        """Look straight down and zoom all the way out."""
+        if self.top_view:
+            return
+        self.c.right_drag(C.TILT_DRAG_PX)
+        self.c.hold("o", C.ZOOM_OUT_SEC)
+        self.c.sleep(0.2)
+        self.top_view = True
+
+    def camera_normal(self):
+        if not self.top_view:
+            return
+        self.c.right_drag(-C.UNTILT_DRAG_PX)
+        self.top_view = False
+
+    @property
+    def ppb(self):
+        return self.cal.get("px_per_block", C.PX_PER_BLOCK)
+
+    def _screen_dirs(self):
+        """World direction (dx, dy) of screen right and screen up for our heading."""
+        h = self.heading % 360
+        up = {0: (0, 1), 90: (1, 0), 180: (0, -1), 270: (-1, 0)}[h]
+        right = (up[1], -up[0])
+        return right, up
+
+    def locate(self, completed):
+        """Measure our position from the top layer's edges seen from above.
+        Fixes self.x / self.y for every axis an edge is visible on. Returns the
+        number of axes fixed."""
+        strips = self.v.border_strips(self.v.grab())
+        if not strips:
+            return 0
+        lo, hi = completed - 1, self.base - (completed - 1)  # top finished layer
+        right, up = self._screen_dirs()
+        cx, cy = C.CHAR_POS
+        fixed = set()
+        for side, pos in strips.items():
+            if side == "left":
+                d, dist = (-right[0], -right[1]), (cx - pos) / self.ppb
+            elif side == "right":
+                d, dist = right, (pos - cx) / self.ppb
+            elif side == "top":
+                d, dist = up, (cy - pos) / self.ppb
+            else:
+                d, dist = (-up[0], -up[1]), (pos - cy) / self.ppb
+            if d[0]:
+                self.x = hi - dist if d[0] > 0 else lo + dist
+                fixed.add("x")
+            else:
+                self.y = hi - dist if d[1] > 0 else lo + dist
+                fixed.add("y")
+        if fixed:
+            log.info("seen from above: %s -> at (%.1f, %.1f)",
+                     ", ".join("%s %d" % kv for kv in strips.items()), self.x, self.y)
+        return len(fixed)
+
+    def calibrate_scale(self):
+        """Pixels per block from above: slide a known distance and see how far a
+        left/right edge moves on screen."""
+        s1 = self.v.border_strips(self.v.grab())
+        side = "left" if "left" in s1 else "right" if "right" in s1 else None
+        if side is None or not self.spb:
+            return
+        blocks = 4
+        self.c.hold("d", blocks * self.spb)
+        self.c.sleep(0.15)
+        s2 = self.v.border_strips(self.v.grab())
+        self.c.hold("a", blocks * self.spb)
+        if side in s2:
+            ppb = abs(s2[side] - s1[side]) / blocks
+            if 4 < ppb < 60:
+                self.cal["px_per_block"] = round(ppb, 2)
+                self._save_cal()
+
     # ---------- camera / heading ----------
     def align(self, max_deg=90):
         """Turn the camera until the step edges ahead are horizontal."""
@@ -113,8 +191,11 @@ class Navigator:
             self.c.turn_left(-delta / 90 * self.turn90)
         self.heading = heading % 360
         if delta:
-            self.c.sleep(0.05)
-            self.align(C.ALIGN_ON_PYRAMID_MAX_DEG)
+            self.c.sleep(0.1)
+            if self.top_view:
+                self.locate(self.completed)
+            else:
+                self.align(C.ALIGN_ON_PYRAMID_MAX_DEG)
 
     # ---------- anchoring ----------
     def slide_to_corner(self, key):
@@ -301,60 +382,30 @@ class Navigator:
         self._save_cal()
 
     def anchor(self, completed):
-        """From the base wall: square up, find the right corner, climb at a known
-        spot. Sets self.x / self.y / self.heading."""
-        log.info("anchoring at a corner")
+        """Climb where we are, look straight down and measure our position from
+        the pyramid's edges. Sets self.x / self.y / self.heading."""
+        log.info("anchoring: climb, then look down to measure")
         self.check_walkspeed()
+        self.completed = completed
         self.align()
-        if "turn90" not in self.cal:
-            self.calibrate_turn()
-            self.align()
-        # always start from the LEFT corner (the first time, measure walk speed
-        # by sliding right corner -> left corner)
-        if self.spb is None:
-            if self.find_corner("d") is None:
-                return False
-            log.info("measuring walk speed: sliding to the other corner (%d blocks)", self.base)
-            self.align()
-            slid = self.find_corner("a")
-            if slid is None:
-                return False
-            self.cal["sec_per_block"] = round(slid / self.base, 5)
-            self._save_cal()
-        else:
-            # one picture of the whole side tells us how far the left corner is
-            self.align()
-            x = self.locate_by_overview()
-            if x is not None and self.spb:
-                offset = completed + 2
-                self.align()
-                if x > offset:
-                    self.c.hold("a", (x - offset) * self.spb)
-                else:
-                    self.c.hold("d", (offset - x) * self.spb)
-                self.x = offset
-                since_wall = self.climb_layers(completed)
-                self.y = max(0, completed - 1 + self.extra_steps) + since_wall / self.spb
-                self.heading = 0
-                log.info("anchored at (%.1f, %.1f) from the overview", self.x, self.y)
-                return True
-            if self.find_corner("a") is None:
-                return False
-        at_left = True
-        # climb two blocks inside the layer being built (not too close to the edge)
-        offset = completed + 2
-        self.align()
-        if at_left:
-            self.c.hold("d", offset * self.spb)
-            self.x = offset
-        else:
-            self.c.hold("a", offset * self.spb)
-            self.x = self.base - offset
-        since_wall = self.climb_layers(completed)
-        # one jump per layer: the last one starts at the top layer's edge
-        # (y = completed - 1) and carries us forward for its W time
-        self.y = max(0, completed - 1 + self.extra_steps) + since_wall / self.spb
+        self.climb_layers(completed)
         self.heading = 0
+        self.x = self.y = self.base / 2  # until measured
+        self.camera_top()
+        if "px_per_block" not in self.cal:
+            self.calibrate_scale()
+        axes = self.locate(completed)
+        # no edge in view: walk back toward the side we came up until one shows
+        tries = 0
+        while axes == 0 and tries < 15:
+            self.c.hold("s", 0.3 * self.speed_factor)
+            axes = self.locate(completed)
+            tries += 1
+        if axes == 0:
+            log.warning("no pyramid edge seen from above")
+            self.camera_normal()
+            return False
+        self.v.save(self.v.grab(), "top_view")
         log.info("anchored at (%.1f, %.1f)", self.x, self.y)
         return True
 
@@ -434,26 +485,10 @@ class Navigator:
         return 1.0 if side <= 0 else 1 - placed / (side * side)
 
     def reanchor(self, completed, state):
-        """Walk down the near side of the pyramid and anchor at the corner again,
-        which wipes out the small errors that add up while walking."""
-        log.info("re-anchoring: walking down to the base wall")
-        self.c.up("e")
-        # stay away from the side edges so we come down in front of the base wall
-        margin = min(10, self.base / 4)
-        status = self.walk_to(min(max(self.x, margin), self.base - margin), self.y, state)
-        if status:
-            return status
-        self.face(180)
-        # plenty extra: the estimate may be off after a long spiral, and a few
-        # blocks out into the desert don't hurt
-        self.walk(self.y + C.REANCHOR_EXTRA, state, check_lost=False)
-        self.face(0)
-        for _ in range(80):  # back toward the pyramid until the base wall stops us
-            if self.b.walk_step_blocked(C.CLIMB_STEP_SEC):
-                break
-        if not self.anchor(completed):
-            return "failed"
-        self.c.down("e")
+        """Fix our position: from above, just look at the edges again."""
+        if self.top_view and self.locate(completed):
+            return None
+        log.info("no edge in view to fix the position, carrying on")
         return None
 
     def walk_to(self, tx, ty, state):
@@ -499,6 +534,7 @@ class Navigator:
             while True:
                 cur = self.b.counter() or self.b.last_counter
                 completed, side, placed = G.layer_info(cur[0], base)
+                self.completed = completed
                 if side <= 0:
                     return "done"
                 left = 1 - placed / (side * side)

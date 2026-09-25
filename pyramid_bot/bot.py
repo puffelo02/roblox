@@ -331,7 +331,10 @@ class Bot:
             log.info("pyramid size unknown (%s), following the cube instead", cur)
             self.build()
             return
-        status = self.nav.run(base)
+        try:
+            status = self.nav.run(base)
+        finally:
+            self.nav.camera_normal()  # back to the normal view for walking to BLOCKS
         log.info("building stopped: %s", status)
         if status == "failed":
             log.info("couldn't anchor, following the cube this trip")
