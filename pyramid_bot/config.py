@@ -121,6 +121,7 @@ STRIP_HUD_MASKS = [(0, 330, 345, 740), (1740, 390, 1920, 680), (640, 0, 1370, 15
 BLOCKY_DARK_V = 140       # jagged-edge camera check: "grey/shaded" = darker than this...
 BLOCKY_DARK_S = 95        # ...or less saturated than this
 BLOCKY_MIN_COHERENCE = 0.35
+TOP_SIGN_MASK = (760, 430, 1180, 580)  # the sign + character in the top view (not an edge)
 STRIP_BAND = 60           # px around the character's row/column to look for strips
 STRIP_FILL = 0.3          # share of dark pixels for a column/row to count as strip
 STRIP_BAND_GAP = 220      # check edges this far above/below (left/right) of the character too

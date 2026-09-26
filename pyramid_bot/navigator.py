@@ -992,8 +992,14 @@ class Navigator:
         log.info("anchoring: climb, look down, walk to the middle")
         self.check_walkspeed()
         self.completed = completed
-        self.align()
-        self.climb_to_top()
+        if getattr(self.b, "on_top_already", False):
+            # we looked down on the way and the sign was right below us: we're
+            # on top already. Climbing/walking on from here ran us off the edge
+            log.info("already on top (sign was below us): no climbing")
+            self.b.on_top_already = False
+        else:
+            self.align()
+            self.climb_to_top()
         self.heading = 0
         self.camera_top()
         self.top_align()  # square the camera first: turning later can lose the sign

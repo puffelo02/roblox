@@ -281,6 +281,7 @@ class Bot:
                 self.nav.camera_normal()
                 if here is not None:
                     log.info("looked down: the sign is below us: arrived")
+                    self.on_top_already = True  # no walking in / climbing now
                     return True
             if which == "pyramid" and offset is not None:
                 self.saw_pyramid_sign = True
@@ -544,6 +545,7 @@ class Bot:
     def go_to_pyramid(self):
         log.info("-> PYRAMID")
         self.saw_pyramid_sign = False
+        self.on_top_already = False
         ok = False
         for attempt in range(C.BLOCKS_TRIES):
             self.nav.reset_camera()
@@ -561,7 +563,8 @@ class Bot:
                 break
             log.warning("didn't reach the pyramid (try %d/%d)", attempt + 1, C.BLOCKS_TRIES)
         if ok:
-            self.c.hold("w", C.PLOT_ENTER_SEC)
+            if not getattr(self, "on_top_already", False):
+                self.c.hold("w", C.PLOT_ENTER_SEC)
         return ok
 
     def place_here(self):

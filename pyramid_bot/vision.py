@@ -381,22 +381,21 @@ class Vision:
         return -(la + ra) / 2
 
     def _blocky_edges_angle(self, img):
-        """No long straight edge (a half-built layer has jagged, block-by-block
-        edges): every little block edge still runs along the pyramid's axes.
-        Average the direction of all sand/grey borders (modulo 90 degrees)."""
+        """No long straight edge (jagged half-built layer, a grey silver top,
+        edges hidden under the HUD): every little block edge and border still
+        runs along the pyramid's axes. Average the direction of all the
+        strongest brightness edges (modulo 90 degrees)."""
         import math
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        dark = ((hsv[:, :, 2] < C.BLOCKY_DARK_V) | (hsv[:, :, 1] < C.BLOCKY_DARK_S)).astype(np.float32)
-        dark = cv2.GaussianBlur(dark, (7, 7), 0)
-        gx = cv2.Sobel(dark, cv2.CV_32F, 1, 0, ksize=5)
-        gy = cv2.Sobel(dark, cv2.CV_32F, 0, 1, ksize=5)
+        g = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32), (7, 7), 0)
+        gx = cv2.Sobel(g, cv2.CV_32F, 1, 0, ksize=5)
+        gy = cv2.Sobel(g, cv2.CV_32F, 0, 1, ksize=5)
         m = np.hypot(gx, gy)
-        for x1, y1, x2, y2 in C.STRIP_HUD_MASKS:
+        for x1, y1, x2, y2 in C.STRIP_HUD_MASKS + [C.TOP_SIGN_MASK]:
             m[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)] = 0
         m[:int(160 * self.sy), :] = 0
         if m.max() <= 0:
             return None
-        w = m * (m > m.max() * 0.2)
+        w = m * (m > np.percentile(m, 97))
         th = np.arctan2(gy, gx)
         c, s = float((w * np.cos(4 * th)).sum()), float((w * np.sin(4 * th)).sum())
         if math.hypot(c, s) / max(float(w.sum()), 1e-6) < C.BLOCKY_MIN_COHERENCE:
