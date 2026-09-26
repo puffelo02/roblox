@@ -192,7 +192,15 @@ class Bot:
             (self.c.turn_left if off < 0 else self.c.turn_right)(
                 abs(off) * C.HALF_FOV_DEG / 90 * t90 * C.CENTER_SIGN_GAIN)
             self.c.sleep(0.15)
-            off = self.v.find_sign(self.v.grab(), which)[0]
+            off = self.sign_or_shape(self.v.grab(), which)
+
+    def sign_or_shape(self, img, which):
+        """Where the sign is (offset), or for the pyramid its outline when the
+        sign is hidden behind the top UI bar."""
+        off = self.v.find_sign(img, which)[0]
+        if off is None and which == "pyramid":
+            off = self.v.pyramid_landmark(img)
+        return off
 
     def face_sign(self, which, max_turns=1.0, strict=False):
         """Turn the camera (standing still) until the sign is in view, then turn
@@ -207,7 +215,7 @@ class Bot:
             img = self.v.grab()
             if self.close_menu(img):
                 continue
-            off = self.v.find_sign(img, which)[0]
+            off = self.sign_or_shape(img, which)
             if off is not None and which == "pyramid":
                 self.saw_pyramid_sign = True
             if off is None and which == "pyramid" and not strict and self.pyramid_ahead(img):
@@ -239,6 +247,13 @@ class Bot:
             if self.close_menu(img):
                 continue
             offset, pixels = self.v.find_sign(img, which)
+            by_shape = False
+            if which == "pyramid" and offset is None:
+                # sign hidden behind the top UI bar (or out of range): the
+                # pyramid's own shape tells us where it is just as well
+                offset = self.v.pyramid_landmark(img)
+                by_shape = offset is not None
+                pixels = 0
             if which == "pyramid" and offset is not None:
                 self.saw_pyramid_sign = True
             if which == "pyramid" and offset is None and self.pyramid_ahead(img):
@@ -250,7 +265,9 @@ class Bot:
             if arrived(img, pixels):
                 log.info("arrived at %s", which)
                 return True
-            if offset is not None:
+            if offset is not None and by_shape:
+                missing = 0
+            elif offset is not None:
                 missing = 0
                 near = (self.v.last_sign_y < C.SIGN_NEAR_TOP_Y
                         and pixels > C.SIGN_NEAR_MIN_PX * self.v.sx * self.v.sy)
