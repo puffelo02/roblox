@@ -216,3 +216,6 @@ DEFAULT_WALKSPEED = 64           # ...this Walk Speed (from real runs)
 HALF_FOV_DEG = 51          # Roblox camera: half the screen width is about this many degrees
 SIGN_LOST_WALK_CHECKS = 14 # BLOCKS sign out of render distance: keep walking this many steps first
 TURN_CAL_MIN_SEC = 1.0     # a full camera turn can't be faster than this
+LOOK_BACK_STEP_BLOCKS = 1.5  # camera down, sign went overhead: step back this much at a time...
+LOOK_BACK_MAX_STEPS = 8      # ...at most this many times (the top can be narrow)
+FEW_BLOCKS_LEFT = 50         # this few missing on a layer: "nothing placed" isn't a fall

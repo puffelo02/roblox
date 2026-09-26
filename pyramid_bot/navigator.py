@@ -526,7 +526,7 @@ class Navigator:
             if self.b.close_menu():
                 continue
             img = self.v.grab()
-            sign = self.v.sign_top(img)
+            sign = self.v.sign_top(img) or self.v.sign_top(img, allow_edge=True)
             if sign is not None:
                 # the sign hangs right over the middle: get under its "A"
                 tx, ty = cx + C.SIGN_MIDDLE_OFFSET[0], cy + C.SIGN_MIDDLE_OFFSET[1]
@@ -618,6 +618,16 @@ class Navigator:
         while time.time() < end:
             self.c.check()
             if time.time() - state["last_rise"] > C.LOST_SEC_LATE:
+                cur = self.b.last_counter
+                left = None
+                if cur:
+                    n, side, placed = G.layer_info(cur[0], self.base)
+                    left = side * side - placed
+                if left is not None and left < C.FEW_BLOCKS_LEFT and self.go_middle(start_layer):
+                    log.info("cleanup: only %d blocks left, back under the A and on", left)
+                    state["last_rise"] = time.time()
+                    laps = G.ring(lo, hi, self.lap_inset(hi - lo, 1), (self.x, self.y))
+                    continue
                 log.info("cleanup: nothing placed for %ds: fell off?", C.LOST_SEC_LATE)
                 return "lost"
             img = self.v.grab()
@@ -793,19 +803,17 @@ class Navigator:
     def look_down_for_sign(self, last_off, steps):
         """Camera down; if the sign isn't below us it's behind: step back
         (toward the side it was last seen on) until it shows in the top view."""
-        self.camera_top()
-        self.top_align()  # we may have turned the camera to find the sign
-        for i in range(steps):
+        self.camera_top()  # (no camera turning here: it would push the sign out of view)
+        for i in range(min(steps, C.LOOK_BACK_MAX_STEPS)):
             self.c.check()
-            if self.v.sign_top(self.v.grab()) is not None:
+            if self.v.sign_top(self.v.grab(), allow_edge=True) is not None:
                 log.info("on top: sign in the top view (%d steps back)", i)
                 return True
-            if i % C.JUMP_EVERY_MOVES == C.JUMP_EVERY_MOVES - 1:
-                self.c.hold("space", C.JUMP_HOLD_SEC)
-            self.c.hold("s", 3 * self.spb)  # opposite of the way we were going
+            self.c.hold("s", C.LOOK_BACK_STEP_BLOCKS * self.spb)  # small steps: the top can be narrow
             if abs(last_off) > C.STEER_TOLERANCE:
-                self.c.hold("d" if last_off > 0 else "a", min(3, abs(last_off) * 8) * self.spb)
-        return self.v.sign_top(self.v.grab()) is not None
+                self.c.hold("d" if last_off > 0 else "a", min(1.5, abs(last_off) * 4) * self.spb)
+            self.c.sleep(0.1)
+        return self.v.sign_top(self.v.grab(), allow_edge=True) is not None
 
     def move_step(self, key, sec):
         """Top view: walk `sec` seconds. Jump only if the sign was in view and

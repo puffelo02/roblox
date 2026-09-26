@@ -305,7 +305,7 @@ class Vision:
         return (min(r[0] for r in near) / self.sx,
                 max(r[0] + r[2] for r in near) / self.sx)
 
-    def sign_top(self, img):
+    def sign_top(self, img, allow_edge=False):
         """Top-down view: the green PYRAMID sign floating over the pyramid's
         middle. Returns (x, y) of its centre in 1080p pixels, or None."""
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -319,7 +319,7 @@ class Vision:
             x, y, w, h, area = st[i]
             if w < C.SIGN_TOP_MIN_W * self.sx or w < 3 * h:
                 continue
-            if x <= 2 or y <= 2 or x + w >= W - 2 or y + h >= H - 2:
+            if not allow_edge and (x <= 2 or y <= 2 or x + w >= W - 2 or y + h >= H - 2):
                 continue  # cut off by the screen edge: centre would be wrong
             if best is None or area > best[0]:
                 best = (area, cen[i][0] / self.sx, cen[i][1] / self.sy)
