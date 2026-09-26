@@ -982,6 +982,13 @@ class Navigator:
                 if check_lost and idle > limit:
                     log.info("nothing placed for %.0fs on a layer that isn't done: lost", idle)
                     self.v.save(img, "lost_spiral")
+                    # walk straight back to where we were still placing (on a
+                    # flat baseplate nothing stops us from wandering off)
+                    back = {"w": "s", "s": "w", "a": "d", "d": "a"}[key]
+                    walked = min(idle, limit) * C.BUILD_DUTY
+                    self.c.up(key)
+                    log.info("walking back %.1fs (%s) to where blocks were going down", walked, back.upper())
+                    self.c.hold(back, walked)
                     return "lost"
         finally:
             self.c.up(key)

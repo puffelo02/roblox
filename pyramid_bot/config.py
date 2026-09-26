@@ -108,7 +108,7 @@ ALIGN_ON_PYRAMID_MAX_DEG = 6  # on top, only trust small corrections
 TURN_CAL_MAX_SEC = 9      # longest camera spin when measuring a full turn
 REANCHOR_EXTRA = 12       # walk this many blocks past the estimated edge when going down
 MAX_MIDDLE_RESTARTS = 12  # times in a row to go back to the middle before giving up the trip
-LOST_SEC = 8              # nothing placed, no cube, layer far from done = lost
+LOST_SEC = 5              # nothing placed, no cube, layer far from done = lost
 EDGE_LAP_INSETS = (2.5, 4.0)  # laps this far from the edge to pick up missed blocks
 CLEANUP_SEC = 60          # follow the cube this long when a layer has a few missed spots
 CLEANUP_BELOW = 0.12      # under 12% missing (all near the edges): edge laps + cube
