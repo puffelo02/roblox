@@ -2,6 +2,7 @@
 
 A pyramid of 171,700 blocks is 100x100 at the base and every layer is one block
 smaller on each side:  100^2 + 98^2 + 96^2 + ... + 2^2 = 171,700  (50 layers).
+Other types: 240,464 = 112 base (56 layers), 357,760 = 128 (64), 573,800 = 150 (75).
 
 Coordinates are in blocks, seen from where the bot anchors: x runs along the
 base wall it faced (0 = left corner, base = right corner), y goes into the

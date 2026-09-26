@@ -8,6 +8,9 @@ TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # --- Screen regions (x1, y1, x2, y2) at 1920x1080 ---
 REGION_COUNTER = (660, 5, 1350, 85)       # "909 / 171,700"
+# every pyramid type (total blocks -> base): 171,700 = 100x100 (50 layers),
+# 240,464 = 112 (56), 357,760 = 128 (64), 573,800 = 150 (75, the rare one)
+PYRAMID_TOTALS = (171700, 240464, 357760, 573800)
 REGION_CAPACITY = (60, 596, 420, 645)     # "Capacity: 1681/42705"
 REGION_PROMPT = (760, 760, 1150, 890)     # "E  Block  Pick Up" box
 REGION_WALKSPEED = (95, 505, 345, 535)    # "Walk Speed: 30/5501"

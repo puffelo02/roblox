@@ -80,7 +80,20 @@ class Vision:
         return None
 
     def read_counter(self, img):
-        return self._read_pair(img, C.REGION_COUNTER)
+        pair = self._read_pair(img, C.REGION_COUNTER)
+        if not pair:
+            return None
+        cur, total = pair
+        if total not in C.PYRAMID_TOTALS:
+            # a misread digit: snap to the pyramid type it's closest to (all
+            # types are known), or drop the reading if it's nothing like any
+            near = min(C.PYRAMID_TOTALS, key=lambda t: abs(t - total))
+            if abs(near - total) > near * 0.02:
+                return None
+            total = near
+        if cur > total:
+            return None
+        return cur, total
 
     def cooldown_visible(self, img):
         """Pyramid finished: the progress bar shows a countdown like '2:39'
