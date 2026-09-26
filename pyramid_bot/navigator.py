@@ -1046,6 +1046,10 @@ class Navigator:
         self.c.up("e")
         ok = self.b.go_to_pyramid() and self.anchor(completed)
         self.c.down("e")
+        if ok:
+            # fell off and came back: whatever pattern we were in is off now.
+            # Start this layer's plan fresh from the middle
+            self.fresh_start = True
         return ok
 
     def peek_sign(self):
@@ -1439,6 +1443,14 @@ class Navigator:
                     return "done"
                 left = 1 - placed / (side * side)
                 lo, hi = G.layer_bounds(completed, base)
+                if getattr(self, "fresh_start", False):
+                    self.fresh_start = False
+                    log.info("back on top after a fall: starting layer %d's pattern over from the middle",
+                             completed + 1)
+                    passes.pop(completed, None)
+                    edge_walked.discard(completed)
+                    edge_fixed.discard(completed)
+                    outward_done = False
                 if cur[1] and cur[0] / cur[1] >= C.STAY_MIDDLE_PROGRESS:
                     # small top: the placing radius reaches the edges from the
                     # middle. Stay there, only shuffle a couple of blocks

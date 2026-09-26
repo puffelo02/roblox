@@ -395,7 +395,7 @@ class Vision:
         m[:int(160 * self.sy), :] = 0
         if m.max() <= 0:
             return None
-        w = m * (m > np.percentile(m, 97))
+        w = m * (m > np.percentile(m, 99))
         th = np.arctan2(gy, gx)
         c, s = float((w * np.cos(4 * th)).sum()), float((w * np.sin(4 * th)).sum())
         if math.hypot(c, s) / max(float(w.sum()), 1e-6) < C.BLOCKY_MIN_COHERENCE:
