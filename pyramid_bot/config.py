@@ -219,6 +219,8 @@ APPROACH_WIDTH_SHARE = 0.6  # on top: walk at most this share of the top's width
 WALK_BACK_MAX_BLOCKS = 8  # lost: walk back at most this far
 MIDDLE_BAD_READS = 3      # sign readings bigger than the top this often: stop and look again
 MOVE_EDGE_STOP_BLOCKS = 3 # top view: an edge this close on the side we step to = don't step
+LATE_PROGRESS = 0.75      # pyramid this far built: extra careful on top
+LATE_EXTRA_MARGIN = 1.0   # ...keep this many more blocks from the edge
 TOP_SAFE_MARGIN = 1.5     # never go closer than this (blocks) to the edge of the top
 SPB_MIN_RATIO = 0.5       # learned seconds-per-block kept within these x the default
 SPB_MAX_RATIO = 1.8

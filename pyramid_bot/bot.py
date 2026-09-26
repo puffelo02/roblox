@@ -277,9 +277,9 @@ class Bot:
                 # far from the sign. Look down now and then: sign below = there
                 last_top_check = time.time()
                 self.nav.camera_top()
-                here = self.v.sign_top(self.v.grab(), allow_edge=True)
+                here = self.nav.sign_below()
                 self.nav.camera_normal()
-                if here is not None:
+                if here:
                     log.info("looked down: the sign is below us: arrived")
                     self.on_top_already = True  # no walking in / climbing now
                     return True

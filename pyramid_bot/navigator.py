@@ -537,7 +537,7 @@ class Navigator:
         # first look down: sign right below us = this IS the top (we started
         # the climb part-way up, so the jump count is low)
         self.camera_top()
-        below = self.v.sign_top(self.v.grab(), allow_edge=True) is not None
+        below = self.sign_below()
         self.camera_normal()
         self.c.sleep(0.1)
         if below:
@@ -673,6 +673,26 @@ class Navigator:
             log.info("couldn't confirm the middle with the sign")
         return centred
 
+    def sign_below(self, img=None):
+        """Top view: is the sign below us AND close enough that we're really
+        standing on the top? (From the ground or a lower step the sign also
+        shows, far off at the screen's edge: that isn't "on top".)"""
+        if img is None:
+            img = self.v.grab()
+        sign = self.v.sign_top(img, allow_edge=True)
+        if sign is None:
+            return False
+        completed = self.expected_layers()
+        half = (self.base - 2 * max(0, completed - 1)) / 2 if self.base else 50
+        tx = C.CHAR_POS[0] + C.SIGN_MIDDLE_OFFSET[0]
+        ty = C.CHAR_POS[1] + C.SIGN_MIDDLE_OFFSET[1]
+        dist = max(abs(sign[0] - tx), abs(sign[1] - ty)) / self.ppb
+        if dist > half + 2:
+            log.info("sign in the top view but %.0f blocks away (top is %.0f wide): not on top",
+                     dist, 2 * half)
+            return False
+        return True
+
     def safe_room(self, pos, key):
         """Top view safety: how many blocks we may still go with `key` before
         getting closer than TOP_SAFE_MARGIN to the edge of the top we stand
@@ -684,7 +704,14 @@ class Navigator:
         mid = self.base / 2
         v = pos[0] if key in ("a", "d") else pos[1]
         ahead = 1 if key in ("d", "w") else -1
-        return half - C.TOP_SAFE_MARGIN - (v - mid) * ahead
+        return half - self.safe_margin() - (v - mid) * ahead
+
+    def safe_margin(self):
+        """Blocks to keep from the edge; more once the pyramid is 3/4 built
+        (small top, easy to walk off)."""
+        cur = self.b.last_counter
+        late = cur and cur[1] and cur[0] / cur[1] >= C.LATE_PROGRESS
+        return C.TOP_SAFE_MARGIN + (C.LATE_EXTRA_MARGIN if late else 0)
 
     def sign_pos(self, img):
         """Our (x, y) on the layer from the sign's spot on screen, or None."""
@@ -912,7 +939,7 @@ class Navigator:
                 # may already be in the top view
                 self.c.up("w")
                 self.camera_top()
-                if self.v.sign_top(self.v.grab(), allow_edge=True) is not None:
+                if self.sign_below():
                     log.info("on top: looked down, sign in the top view")
                     return True
                 self.camera_normal()
@@ -956,14 +983,14 @@ class Navigator:
         self.camera_top()  # (no camera turning here: it would push the sign out of view)
         for i in range(min(steps, C.LOOK_BACK_MAX_STEPS)):
             self.c.check()
-            if self.v.sign_top(self.v.grab(), allow_edge=True) is not None:
+            if self.sign_below():
                 log.info("on top: sign in the top view (%d steps back)", i)
                 return True
             self.c.hold("s", C.LOOK_BACK_STEP_BLOCKS * self.spb)  # small steps: the top can be narrow
             if abs(last_off) > C.STEER_TOLERANCE:
                 self.c.hold("d" if last_off > 0 else "a", min(1.5, abs(last_off) * 4) * self.spb)
             self.c.sleep(0.1)
-        return self.v.sign_top(self.v.grab(), allow_edge=True) is not None
+        return self.sign_below()
 
     def move_step(self, key, sec):
         """Top view: walk `sec` seconds. Jump only if the sign was in view and
@@ -1043,7 +1070,11 @@ class Navigator:
         if not self.go_middle(completed, front=True):
             # lost it again while lining up: look for it again (we're on top)
             self.approach_sign(completed)
-            self.go_middle(completed)
+            if not self.go_middle(completed):
+                # never start a spiral from an unknown spot: that's how we
+                # walked off. Get back on the pyramid properly instead
+                log.warning("couldn't get under the A: not spiralling from here")
+                return False
         img = self.v.grab()
         self.v.save(img, "top_view")  # picture from the middle
         self.measure_scale(img, completed)
@@ -1193,7 +1224,8 @@ class Navigator:
             key = ("d" if d > 0 else "a") if axis == "x" else ("w" if d > 0 else "s")
             lo, hi = self.completed - 1, self.base - (self.completed - 1)
             # never aim closer to the edge of the top than the safety margin
-            target = min(max(target, lo + C.TOP_SAFE_MARGIN), hi - C.TOP_SAFE_MARGIN)
+            m = self.safe_margin()
+            target = min(max(target, lo + m), hi - m)
             d = target - (self.x if axis == "x" else self.y)
             if abs(d) <= 0.3:
                 continue
