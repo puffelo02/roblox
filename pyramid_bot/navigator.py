@@ -138,7 +138,8 @@ class Navigator:
         self.top_view = True
 
     def leg_scale(self, key):
-        return getattr(self, "leg_scales", {}).get(key, 1.0)
+        v = getattr(self, "leg_scales", {}).get(key, 1.0)
+        return min(max(v, C.LEG_SCALE_MIN), C.LEG_SCALE_MAX)  # never walk much longer than planned
 
     def learn_leg(self, key, planned, actual):
         """planned blocks vs actual blocks walked on a leg in direction key."""
@@ -533,6 +534,15 @@ class Navigator:
         layers = self.expected_layers()
         if not layers or jumps >= layers * C.TOP_JUMPS_RATIO:
             return False
+        # first look down: sign right below us = this IS the top (we started
+        # the climb part-way up, so the jump count is low)
+        self.camera_top()
+        below = self.v.sign_top(self.v.grab(), allow_edge=True) is not None
+        self.camera_normal()
+        self.c.sleep(0.1)
+        if below:
+            log.info("flat ahead after %d jumps: sign below us, this is the top", jumps)
+            return False
         log.info("flat ahead after %d jumps but %d layers built: looking up for the sign",
                  jumps, layers)
         t90 = self.turn90
@@ -877,7 +887,11 @@ class Navigator:
             self.camera_normal()
             self.c.sleep(0.15)
             self.b.face_sign("pyramid", strict=True)  # only stop turning on the real sign
-        for i in range(C.APPROACH_MAX_STEPS):
+        # never walk further than the top is wide looking for the sign
+        completed = self.expected_layers()
+        top_w = (self.base - 2 * max(0, completed - 1)) if self.base else 100
+        max_steps = min(C.APPROACH_MAX_STEPS, max(2, int(top_w / 3 * C.APPROACH_WIDTH_SHARE)))
+        for i in range(max_steps):
             self.c.check()
             img = self.v.grab()
             if self.b.close_menu(img):
@@ -1018,7 +1032,8 @@ class Navigator:
         return True
 
     # ---------- walking with E held ----------
-    def walk(self, blocks, state, check_lost=True, key="w", edge_stop=False, goal=None):
+    def walk(self, blocks, state, check_lost=True, key="w", edge_stop=False, goal=None,
+             max_blocks=None):
         """Walk forward `blocks` with W (E held). Returns None, or "empty",
         "done", "lost" if building should stop."""
         duration = blocks * self.spb
@@ -1030,6 +1045,10 @@ class Navigator:
         self.c.down(key)
         try:
             while moved < duration:
+                if max_blocks is not None and moved / self.spb >= max_blocks:
+                    # by our own count we'd be at the edge of the top: stop
+                    log.info("safety: walked as far as the top allows (%s)", key.upper())
+                    return None
                 remaining = duration - moved
                 self.c.sleep(min(C.BUILD_TICK_SEC, remaining))
                 now = time.time()
@@ -1154,11 +1173,20 @@ class Navigator:
             dist = abs(d)
             key = ("d" if d > 0 else "a") if axis == "x" else ("w" if d > 0 else "s")
             lo, hi = self.completed - 1, self.base - (self.completed - 1)
+            # never aim closer to the edge of the top than the safety margin
+            target = min(max(target, lo + C.TOP_SAFE_MARGIN), hi - C.TOP_SAFE_MARGIN)
+            d = target - (self.x if axis == "x" else self.y)
+            if abs(d) <= 0.3:
+                continue
+            dist = abs(d)
+            key = ("d" if d > 0 else "a") if axis == "x" else ("w" if d > 0 else "s")
             # only legs heading close to the outer edge watch for it (the built
             # square's own edge in the middle looks the same and must not count)
             near_edge = min(target - lo, hi - target) < self.spiral_inset(hi - lo) + C.EDGE_WATCH_BLOCKS
             start = self.x if axis == "x" else self.y
+            room = self.safe_room((self.x, self.y), key) if self.top_view else None
             status = self.walk(dist * self.leg_scale(key), state, check_lost=check_lost, key=key,
+                               max_blocks=room,
                                edge_stop=(check_lost if watch_edge is None else watch_edge)
                                and self.top_view and near_edge,
                                goal=(axis, target))

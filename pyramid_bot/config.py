@@ -213,6 +213,9 @@ STAIRS_TOP_MIN_LINES = 5  # top view: this many stair lines on one side = the py
 PITCH_SEARCH_TRIES = 1    # tilt the camera up this many times looking for a sign
 PITCH_SEARCH_PX = 120     # right-drag per tilt step
 CLIMB_TEST_STEP_SEC = 0.25  # walk test while climbing: on stairs this always hits the next step
+LEG_SCALE_MIN = 0.6       # learned leg corrections kept in this range
+LEG_SCALE_MAX = 1.15
+APPROACH_WIDTH_SHARE = 0.6  # on top: walk at most this share of the top's width toward the sign
 WALK_BACK_MAX_BLOCKS = 8  # lost: walk back at most this far
 TOP_SAFE_MARGIN = 1.5     # never go closer than this (blocks) to the edge of the top
 SPB_MIN_RATIO = 0.5       # learned seconds-per-block kept within these x the default
