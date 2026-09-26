@@ -164,6 +164,14 @@ class Bot:
         self.v.save(img, "not_pyramid")
         return False
 
+    def step_sec(self, which, near=False):
+        """One walking step. Close to BLOCKS: short steps (about 2 blocks) and
+        a look after each, so we stop at the pit's edge the moment the pick-up
+        prompt shows instead of striding into the pit."""
+        if which == "blocks" and near:
+            return C.BLOCKS_NEAR_STEP_SEC
+        return C.WALK_STEP_SEC
+
     def unstick(self):
         """Walking into something we can't just hop onto from standing against
         it (a raised edge with a gap, a wall): back off, then take a running
@@ -337,7 +345,7 @@ class Bot:
                 log.info("%s sign went above the screen: walking straight ahead", which)
                 last_y = None
                 for _ in range(C.NEAR_SIGN_STEPS):
-                    if self.walk_step_blocked(C.WALK_STEP_SEC):
+                    if self.walk_step_blocked(self.step_sec(which, near=True)):
                         if stop_when_blocked:
                             if self.at_pyramid_wall():
                                 log.info("blocked by the pyramid right under the %s sign: arrived", which)
@@ -351,7 +359,7 @@ class Bot:
                         return True
                 continue
             if offset is None and last_y is not None:
-                self.c.hold("w", C.WALK_STEP_SEC)  # close sign just went out of view: keep going
+                self.c.hold("w", self.step_sec(which, near=True))  # close sign just went out of view: keep going
                 continue
             if offset is None and strafe:
                 # far signs flicker in and out of render distance: keep walking
@@ -384,7 +392,9 @@ class Bot:
             elif strafe:
                 # keep the camera still: sidestep to keep the sign in the middle
                 if abs(offset) > C.STEER_TOLERANCE:
-                    self.c.down("w")
+                    near_pit = which == "blocks" and last_y is not None
+                    if not near_pit:
+                        self.c.down("w")  # (close to the pit: sidestep only, no striding in)
                     self.c.hold("a" if offset < 0 else "d",
                                 min(C.STRAFE_MAX_SEC, abs(offset) * C.STRAFE_GAIN))
                     self.c.up("w")
@@ -393,7 +403,7 @@ class Bot:
             elif offset > C.STEER_TOLERANCE:
                 self.c.turn_right(C.STEER_TAP_SEC)
             before = self.v.scene_small(self.v.grab())
-            self.c.hold("w", C.WALK_STEP_SEC)
+            self.c.hold("w", self.step_sec(which, near=last_y is not None))
             diff = self.v.scene_diff(before, self.v.scene_small(self.v.grab()))
             if diff < C.BLOCKED_DIFF:
                 blocked += 1

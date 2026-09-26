@@ -47,7 +47,8 @@ TURN_90_SEC = 0.79        # how long to hold an arrow key to turn the camera 90 
 TURN_180_SEC = 1.58
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.03    # sign within +-3% of screen center = go straight
-WALK_STEP_SEC = 0.25      # one walking step toward a sign
+WALK_STEP_SEC = 0.25      # one walking step toward a sign (about 7 blocks at speed 64)
+BLOCKS_NEAR_STEP_SEC = 0.07  # close to BLOCKS: ~2-block steps, so we stop at the pit edge
 UNSTICK_WINDOW_SEC = 4    # blocked again within this: next (bigger) way out
 UNSTICK_BACK_SEC = 0.3    # back off this long before a running jump
 UNSTICK_RUNUP_SEC = 0.15  # run this long before jumping
