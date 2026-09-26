@@ -179,6 +179,21 @@ class Bot:
                 return True
         return True
 
+    def center_on_sign(self, which, off):
+        """Turn the camera until the sign sits in the middle of the screen
+        (left/right), re-checking after each turn. If it flickers out (far
+        signs), keep the direction we have."""
+        t90 = self.nav.turn90
+        for _ in range(C.CENTER_SIGN_TRIES):
+            if off is None or abs(off) < C.FACE_SIGN_OK:
+                return
+            # half the screen is about HALF_FOV_DEG degrees; a bit less than
+            # the full turn so we don't swing past it
+            (self.c.turn_left if off < 0 else self.c.turn_right)(
+                abs(off) * C.HALF_FOV_DEG / 90 * t90 * C.CENTER_SIGN_GAIN)
+            self.c.sleep(0.15)
+            off = self.v.find_sign(self.v.grab(), which)[0]
+
     def face_sign(self, which, max_turns=1.0, strict=False):
         """Turn the camera (standing still) until the sign is in view, then turn
         once so it's straight ahead. That direction is kept even if the sign
@@ -198,12 +213,7 @@ class Bot:
             if off is None and which == "pyramid" and not strict and self.pyramid_ahead(img):
                 return True  # staircase right ahead, sign hidden behind the UI
             if off is not None:
-                if abs(off) >= C.FACE_SIGN_OK:
-                    # one turn that brings it to the middle (half the screen is
-                    # about HALF_FOV_DEG degrees)
-                    (self.c.turn_left if off < 0 else self.c.turn_right)(
-                        abs(off) * C.HALF_FOV_DEG / 90 * t90)
-                    self.c.sleep(0.15)
+                self.center_on_sign(which, off)
                 log.info("%s sign found: heading that way", which)
                 return True
             self.c.turn_right(step)
@@ -297,7 +307,11 @@ class Bot:
                     return False
                 continue
             searched = 0.0
-            if strafe:
+            if strafe and which == "pyramid" and abs(offset) > C.STEER_TOLERANCE:
+                # turn so the sign is dead centre, then walk (and climb) straight
+                # at it; sidestepping while walking only circles the pyramid
+                self.center_on_sign(which, offset)
+            elif strafe:
                 # keep the camera still: sidestep to keep the sign in the middle
                 if abs(offset) > C.STEER_TOLERANCE:
                     self.c.down("w")

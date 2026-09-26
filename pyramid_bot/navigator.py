@@ -863,7 +863,9 @@ class Navigator:
             if off is not None:
                 last_off, last_y, missing = off, self.v.last_sign_y, 0
                 if abs(off) > C.STEER_TOLERANCE:
-                    self.c.hold("d" if off > 0 else "a", min(0.2, abs(off) * 0.6))
+                    # turn (not sidestep) so the sign is dead ahead: sidestepping
+                    # while walking only circles around the pyramid
+                    self.b.center_on_sign("pyramid", off)
                 if i % C.JUMP_EVERY_MOVES == C.JUMP_EVERY_MOVES - 1:
                     self.c.hold("space", C.JUMP_HOLD_SEC)  # now and then: hop, unsticks us
                 self.c.hold("w", 3 * self.spb)
