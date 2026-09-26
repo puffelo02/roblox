@@ -882,6 +882,17 @@ class Navigator:
             img = self.v.grab()
             if self.b.close_menu(img):
                 continue
+            if i and i % C.APPROACH_PEEK_EVERY == 0:
+                # don't circle around up here: look down regularly, the sign
+                # may already be in the top view
+                self.c.up("w")
+                self.camera_top()
+                if self.v.sign_top(self.v.grab(), allow_edge=True) is not None:
+                    log.info("on top: looked down, sign in the top view")
+                    return True
+                self.camera_normal()
+                self.c.sleep(0.15)
+                continue
             off = self.v.find_sign(img, "pyramid")[0]
             if off is not None:
                 last_off, last_y, missing = off, self.v.last_sign_y, 0

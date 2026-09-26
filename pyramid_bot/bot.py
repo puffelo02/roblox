@@ -271,16 +271,16 @@ class Bot:
                 pixels = 0
             elif which == "pyramid":
                 last_off = offset
-            if which == "pyramid" and self.no_layer_low() \
+            if which == "pyramid" and self.saw_pyramid_sign \
                     and time.time() - last_top_check > C.LOW_TOP_CHECK_SEC:
-                # low pyramid: we may be standing on it already, far from the
-                # sign. Look down: sign below us = we're on top
+                # we may be standing on the pyramid already (flat wide top),
+                # far from the sign. Look down now and then: sign below = there
                 last_top_check = time.time()
                 self.nav.camera_top()
                 here = self.v.sign_top(self.v.grab(), allow_edge=True)
                 self.nav.camera_normal()
                 if here is not None:
-                    log.info("low pyramid: the sign is below us in the top view: arrived")
+                    log.info("looked down: the sign is below us: arrived")
                     return True
             if which == "pyramid" and offset is not None:
                 self.saw_pyramid_sign = True
