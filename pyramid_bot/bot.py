@@ -103,6 +103,10 @@ class Bot:
             self.pick_up()
         waited = 0
         while True:
+            if not self.v.pickup_prompt_visible(self.v.grab()) and waited % 60 == 30:
+                # not standing at BLOCKS (lost on the way?): try again
+                if self.go_to_blocks():
+                    self.pick_up()
             cur = self.v.read_counter(self.v.grab())
             if cur and cur[0] < cur[1]:
                 log.info("new pyramid: %s/%s, building again", *cur)
@@ -273,7 +277,11 @@ class Bot:
                 # far signs flicker in and out of render distance: keep walking
                 # the way we're facing for a while before looking around again
                 if missing >= (C.SIGN_LOST_WALK_CHECKS if which == "blocks" else C.SIGN_GONE_CHECKS):
-                    self.face_sign(which)  # lost it: look around standing still
+                    # lost it: look around standing still
+                    if not self.face_sign(which) and which == "blocks":
+                        # nowhere in sight: don't keep walking blind into the desert
+                        log.warning("blocks sign gone all around: stop walking blind")
+                        return False
                     missing = 0
                 elif self.walk_step_blocked(C.WALK_STEP_SEC):
                     log.info("blocked on the way to %s, jumping over it", which)
@@ -349,12 +357,63 @@ class Bot:
 
     def go_to_blocks(self):
         log.info("-> BLOCKS (refilling)")
-        self.nav.reset_camera()
-        if not self.v.pickup_prompt_visible(self.v.grab()):
-            self.find_sign_any_pitch("blocks")  # find the red BLOCKS sign, standing still
-        return self.walk_to_sign(
-            "blocks", lambda img, px: self.v.pickup_prompt_visible(img), strafe=True
-        )
+        for attempt in range(C.BLOCKS_TRIES):
+            self.nav.reset_camera()
+            if not self.v.pickup_prompt_visible(self.v.grab()):
+                # find the red BLOCKS sign, standing still; out of render
+                # distance: head for the colourful gym next to it until it shows
+                if not self.find_sign_any_pitch("blocks"):
+                    self.nav.reset_camera()
+                    self.head_to_landmark()
+            if self.walk_to_sign(
+                "blocks", lambda img, px: self.v.pickup_prompt_visible(img), strafe=True
+            ):
+                return True
+            log.warning("didn't reach BLOCKS (try %d/%d)", attempt + 1, C.BLOCKS_TRIES)
+        return False
+
+    def head_to_landmark(self):
+        """No BLOCKS sign anywhere (too far away). Turn until the gym's cluster
+        of colours is in view, then walk at it (jumping over things) until the
+        BLOCKS sign shows up. True once the sign is in view."""
+        t90 = self.nav.turn90
+        turned = 0.0
+        off = None
+        while turned < t90 * 4:
+            self.c.check()
+            img = self.v.grab()
+            if self.close_menu(img):
+                continue
+            if self.v.find_sign(img, "blocks")[0] is not None:
+                return self.face_sign("blocks")
+            off = self.v.gym_landmark(img)
+            if off is not None:
+                break
+            self.c.turn_right(t90 / 4)
+            turned += t90 / 4
+            self.c.sleep(0.1)
+        if off is None:
+            log.warning("no gym landmark in sight either")
+            self.v.save(self.v.grab(), "lost_landmark")
+            return False
+        log.info("gym landmark spotted: walking toward it until BLOCKS shows up")
+        for step in range(C.LANDMARK_WALK_STEPS):
+            self.c.check()
+            img = self.v.grab()
+            if self.close_menu(img):
+                continue
+            if self.v.find_sign(img, "blocks")[0] is not None:
+                log.info("BLOCKS sign in sight on the way to the gym")
+                return self.face_sign("blocks")
+            if off is not None and abs(off) >= C.FACE_SIGN_OK:
+                (self.c.turn_left if off < 0 else self.c.turn_right)(
+                    abs(off) * C.HALF_FOV_DEG / 90 * t90)
+                off = None
+            if self.walk_step_blocked(C.WALK_STEP_SEC):
+                self.c.jump_forward()
+            if step % C.LANDMARK_RECENTER_EVERY == 0:
+                off = self.v.gym_landmark(self.v.grab())
+        return False
 
     def pick_up(self):
         """Hold E until capacity is completely full. If it stops rising, shuffle to a new spot."""

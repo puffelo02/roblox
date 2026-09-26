@@ -539,6 +539,28 @@ class Vision:
         total = int(ring.sum())
         return cv2.countNonZero(panel & (ring * 255)) / total if total else 0.0
 
+    def gym_landmark(self, img):
+        """The gym/shop area: a cluster of many different bright colours near
+        the horizon (the desert is all one sandy hue). Seen from much farther
+        than the signs' render distance. Returns offset -1..+1 or None."""
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hue = hsv[:, :, 0].astype(int)
+        m = (hsv[:, :, 1] > C.GYM_MIN_S) & (hsv[:, :, 2] > C.GYM_MIN_V) \
+            & ~((hue >= C.GYM_SAND_HUE[0]) & (hue <= C.GYM_SAND_HUE[1]))
+        m[:int(C.GYM_BAND_Y[0] * self.sy)] = 0
+        m[int(C.GYM_BAND_Y[1] * self.sy):] = 0
+        m[:, :int(360 * self.sx)] = 0   # left HUD
+        m[:, int(1740 * self.sx):] = 0  # right edge / leaderboard
+        k = max(9, int(60 * self.sx))
+        sm = np.convolve(m.sum(0).astype(float), np.ones(k), "same")
+        x = int(sm.argmax())
+        score = sm.max() / (self.sx * self.sy)
+        hs = hue[:, max(0, x - k):x + k][m[:, max(0, x - k):x + k]]
+        colours = len(set((hs // 20).tolist())) if len(hs) else 0
+        if score < C.GYM_MIN_SCORE or colours < C.GYM_MIN_COLOURS:
+            return None
+        return (x - img.shape[1] / 2) / (img.shape[1] / 2)
+
     def find_sign(self, img, which):
         """Returns (offset, pixels): offset is -1 (far left) .. +1 (far right).
 

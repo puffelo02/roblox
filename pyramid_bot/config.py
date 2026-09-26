@@ -214,6 +214,16 @@ FAR_BLOCKS_MAX_Y = 900     # the far BLOCKS sign can be low on screen when seen 
 DEFAULT_SEC_PER_BLOCK = 0.045  # new PC, nothing measured yet: seconds per block at...
 DEFAULT_WALKSPEED = 64           # ...this Walk Speed (from real runs)
 HALF_FOV_DEG = 51          # Roblox camera: half the screen width is about this many degrees
+# gym landmark (colourful area by BLOCKS), used when no sign is in render distance
+GYM_MIN_S = 45
+GYM_MIN_V = 80
+GYM_SAND_HUE = (6, 26)
+GYM_BAND_Y = (200, 620)
+GYM_MIN_SCORE = 300
+GYM_MIN_COLOURS = 4
+LANDMARK_WALK_STEPS = 120   # walk steps toward the gym before looking around again
+LANDMARK_RECENTER_EVERY = 8
+BLOCKS_TRIES = 3
 SIGN_LOST_WALK_CHECKS = 14 # BLOCKS sign out of render distance: keep walking this many steps first
 TURN_CAL_MIN_SEC = 1.0     # a full camera turn can't be faster than this
 LOOK_BACK_STEP_BLOCKS = 1.5  # camera down, sign went overhead: step back this much at a time...
