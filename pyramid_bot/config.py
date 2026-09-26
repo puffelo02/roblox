@@ -118,6 +118,9 @@ STRIP_DARK_RATIO = 0.82   # darker than this share of the top's brightness = edg
 STRIP_HUD_MASKS = [(0, 330, 345, 740), (1740, 390, 1920, 680), (640, 0, 1370, 150),
                    (1420, 40, 1920, 150), (0, 0, 380, 60), (1780, 990, 1920, 1080),
                    (0, 990, 340, 1080), (1840, 0, 1920, 60)]
+BLOCKY_DARK_V = 140       # jagged-edge camera check: "grey/shaded" = darker than this...
+BLOCKY_DARK_S = 95        # ...or less saturated than this
+BLOCKY_MIN_COHERENCE = 0.35
 STRIP_BAND = 60           # px around the character's row/column to look for strips
 STRIP_FILL = 0.3          # share of dark pixels for a column/row to count as strip
 STRIP_BAND_GAP = 220      # check edges this far above/below (left/right) of the character too

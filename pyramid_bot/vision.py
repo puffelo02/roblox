@@ -380,6 +380,29 @@ class Vision:
         ra = max(right, key=lambda t: t[1])[0]
         return -(la + ra) / 2
 
+    def _blocky_edges_angle(self, img):
+        """No long straight edge (a half-built layer has jagged, block-by-block
+        edges): every little block edge still runs along the pyramid's axes.
+        Average the direction of all sand/grey borders (modulo 90 degrees)."""
+        import math
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        dark = ((hsv[:, :, 2] < C.BLOCKY_DARK_V) | (hsv[:, :, 1] < C.BLOCKY_DARK_S)).astype(np.float32)
+        dark = cv2.GaussianBlur(dark, (7, 7), 0)
+        gx = cv2.Sobel(dark, cv2.CV_32F, 1, 0, ksize=5)
+        gy = cv2.Sobel(dark, cv2.CV_32F, 0, 1, ksize=5)
+        m = np.hypot(gx, gy)
+        for x1, y1, x2, y2 in C.STRIP_HUD_MASKS:
+            m[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)] = 0
+        m[:int(160 * self.sy), :] = 0
+        if m.max() <= 0:
+            return None
+        w = m * (m > m.max() * 0.2)
+        th = np.arctan2(gy, gx)
+        c, s = float((w * np.cos(4 * th)).sum()), float((w * np.sin(4 * th)).sum())
+        if math.hypot(c, s) / max(float(w.sum()), 1e-6) < C.BLOCKY_MIN_COHERENCE:
+            return None  # no clear direction: don't guess
+        return math.degrees(math.atan2(s, c)) / 4
+
     def top_angle(self, img):
         """Top-down view: tilt (degrees) of the pyramid's horizontal edge lines on
         screen. 0 = camera square to the pyramid. None if no long line is seen.
@@ -394,7 +417,7 @@ class Vision:
         lines = cv2.HoughLinesP(e, 1, np.pi / 360, 120,
                                 minLineLength=int(250 * self.sx), maxLineGap=20)
         if lines is None:
-            return None
+            return self._blocky_edges_angle(img)
         angs, ws = [], []
         for x1, y1, x2, y2 in lines.reshape(-1, 4):
             a = (math.degrees(math.atan2(y2 - y1, x2 - x1)) + 90) % 180 - 90
@@ -402,7 +425,8 @@ class Vision:
                 angs.append(a)
                 ws.append(math.hypot(x2 - x1, y2 - y1))
         if not angs:
-            return self._side_edges_angle(lines)
+            a = self._side_edges_angle(lines)
+            return a if a is not None else self._blocky_edges_angle(img)
         order = np.argsort(angs)
         a, w = np.array(angs)[order], np.array(ws)[order]
         cum = np.cumsum(w)
