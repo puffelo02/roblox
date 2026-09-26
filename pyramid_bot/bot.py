@@ -164,6 +164,30 @@ class Bot:
         self.v.save(img, "not_pyramid")
         return False
 
+    def unstick(self):
+        """Walking into something we can't just hop onto from standing against
+        it (a raised edge with a gap, a wall): back off, then take a running
+        jump. Still stuck soon after: go around it, wider each time."""
+        now = time.time()
+        if now - getattr(self, "_last_stuck", 0) < C.UNSTICK_WINDOW_SEC:
+            self._stuck_tries = getattr(self, "_stuck_tries", 0) + 1
+        else:
+            self._stuck_tries = 1
+        self._last_stuck = now
+        n = self._stuck_tries
+        if n <= 2:
+            log.info("blocked: backing off and taking a running jump (%d)", n)
+            self.c.hold("s", C.UNSTICK_BACK_SEC * n)
+            self.c.down("w")
+            self.c.sleep(C.UNSTICK_RUNUP_SEC)
+            self.c.hold("space", C.JUMP_HOLD_SEC)
+            self.c.sleep(0.4)
+            self.c.up("w")
+        else:
+            log.info("still blocked: going around it (%d)", n)
+            self.get_around(n)
+            self.c.hold("w", C.WALK_STEP_SEC * 2)
+
     def get_around(self, attempt):
         """First try jumping over it (a sand block); then back off and sidestep
         (alternating sides, wider each time)."""
@@ -321,7 +345,7 @@ class Bot:
                             detours += 1
                             self.get_around(detours)
                             continue
-                        self.c.jump_forward()
+                        self.unstick()
                     if arrived(self.v.grab(), 0):
                         log.info("arrived at %s", which)
                         return True
@@ -341,7 +365,7 @@ class Bot:
                     missing = 0
                 elif self.walk_step_blocked(C.WALK_STEP_SEC):
                     log.info("blocked on the way to %s, jumping over it", which)
-                    self.c.jump_forward()  # e.g. the pyramid in the way: climb over
+                    self.unstick()  # e.g. the pyramid in the way: climb over
                 continue
             if offset is None:
                 # not in view: spin the camera to look for it
@@ -390,7 +414,7 @@ class Bot:
                         self.get_around(detours)
                         continue
                     log.info("blocked on the way to %s, jumping", which)
-                    self.c.jump_forward()
+                    self.unstick()
             else:
                 blocked = 0
         self.v.save(self.v.grab(), f"timeout_{which}")
@@ -490,7 +514,7 @@ class Bot:
                     abs(off) * C.HALF_FOV_DEG / 90 * t90)
                 off = None
             if self.walk_step_blocked(C.WALK_STEP_SEC):
-                self.c.jump_forward()
+                self.unstick()
             if step % C.LANDMARK_RECENTER_EVERY == 0:
                 off, _ = self.landmark(self.v.grab(), which)
                 unseen = 0 if off is not None else unseen + 1

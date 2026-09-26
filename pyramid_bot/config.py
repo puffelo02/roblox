@@ -45,6 +45,9 @@ TURN_180_SEC = 1.58
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.03    # sign within +-3% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
+UNSTICK_WINDOW_SEC = 4    # blocked again within this: next (bigger) way out
+UNSTICK_BACK_SEC = 0.3    # back off this long before a running jump
+UNSTICK_RUNUP_SEC = 0.15  # run this long before jumping
 STEPS_REGION = (480, 300, 1440, 1000)  # where to count the pyramid's stacked step edges
 PYRAMID_MIN_STEP_ROWS = 4  # this many stacked edges ahead = it's the pyramid (a wall has 1-2)
 PYRAMID_MAX_STEP_ROWS = 15 # more than this is a menu / UI, not steps
