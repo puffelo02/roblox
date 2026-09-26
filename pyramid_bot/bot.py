@@ -525,11 +525,12 @@ class Bot:
                     best = cap[0]
                     last_rise = time.time()
                 elif time.time() - last_rise > C.PICKUP_STALL_SEC:
-                    log.info("capacity stuck at %s/%s, moving a bit", *cap)
+                    # never walk around here: the pit can trap us under the
+                    # blocks. Just let go of E and press it again, standing still
+                    log.info("capacity stuck at %s/%s, pressing E again (not moving)", *cap)
                     self.v.save(img, "pickup_stuck")
                     self.c.up("e")
-                    # small moves around inside the pit, cycling direction
-                    self.c.hold("wasd"[shuffle % 4], 0.3)
+                    self.c.sleep(0.3)
                     shuffle += 1
                     if not self.v.pickup_prompt_visible(self.v.grab()):
                         self.go_to_blocks()

@@ -128,7 +128,7 @@ STRIP_AGREE_PX = 90       # the checks must agree within this (a straight edge; 
 STRIP_SKIP_PX = 160       # ignore this close to the character (its shadow)
 STRIP_MIN_PX = 28         # strip must be at least this wide
 PX_PER_BLOCK = 14.2       # top-down scale at full zoom-out (re-measured when possible)
-TILT_DRAG_PX = 700        # right-drag this far down to look straight down
+TILT_DRAG_PX = 900        # right-drag this far down to look straight down (the game stops at straight down)
 UNTILT_DRAG_PX = 420      # drag back up this far for the normal view
 ZOOM_OUT_SEC = 1.5        # hold O to zoom out fully
 EDGE_TRUST_BLOCKS = 8     # only trust edges seen this close (far ones were shadows/signs)
@@ -182,6 +182,8 @@ STRAFE_MAX_SEC = 0.3
 SHAPE_MATCH_SIGN = 0.35   # pyramid outline only counts near where our sign was
 LOW_PYRAMID_LAYERS = 5    # up to this many layers: check the top view while walking
 LOW_TOP_CHECK_SEC = 5     # walking to the pyramid: look down this often once its sign was seen
+APPROACH_BIG_PX = 3500    # on top: sign this many pixels on screen = close to the middle, look down
+APPROACH_CLOSE_Y = 230    # ...or the sign this high up on screen (it rises as we get near)
 APPROACH_PEEK_EVERY = 3   # on top, walking at the sign: look down every this many steps
 CENTER_SIGN_TRIES = 6     # turn-and-look steps to get the sign dead centre
 CENTER_SIGN_GAIN = 0.85

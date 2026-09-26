@@ -893,7 +893,15 @@ class Navigator:
                 self.camera_normal()
                 self.c.sleep(0.15)
                 continue
-            off = self.v.find_sign(img, "pyramid")[0]
+            off, px = self.v.find_sign(img, "pyramid")
+            if off is not None and (px > C.APPROACH_BIG_PX * self.v.sx * self.v.sy
+                                    or self.v.last_sign_y < C.APPROACH_CLOSE_Y * self.v.sy):
+                # the sign is big on screen: we're close to the middle already.
+                # Look straight down and centre from there
+                log.info("on top: sign big / high up (%d px, y %d): close, looking down",
+                         px, self.v.last_sign_y)
+                last_off = off
+                break
             if off is not None:
                 last_off, last_y, missing = off, self.v.last_sign_y, 0
                 if abs(off) > C.STEER_TOLERANCE:
