@@ -625,8 +625,19 @@ class Navigator:
                 # more than a part of the top's half-width at once
                 cap = min(C.MIDDLE_STEP_BLOCKS, max(C.MIDDLE_MIN_CAP_BLOCKS, half * C.MIDDLE_CAP_OF_HALF))
                 if abs(d) > half + 2:
-                    # farther than the top is wide: the reading can't be trusted
-                    cap = C.MIDDLE_MIN_CAP_BLOCKS
+                    # farther than the top is wide: the reading can't be
+                    # trusted (sign at the screen's edge, seen at an angle).
+                    # Walking toward it ran us off the top: don't move on it
+                    bad_reads = getattr(self, "_bad_reads", 0) + 1
+                    self._bad_reads = bad_reads
+                    log.info("to the middle: reading bigger than the top (%.0f > %.0f): not moving on it",
+                             abs(d), half)
+                    if bad_reads >= C.MIDDLE_BAD_READS:
+                        self._bad_reads = 0
+                        return False
+                    self.c.sleep(0.2)
+                    continue
+                self._bad_reads = 0
                 self.move_step(key, max(0.05, min(abs(d) * C.MIDDLE_GAIN, cap) * self.spb))
                 prev = None
                 no_sign = 0
@@ -958,7 +969,15 @@ class Navigator:
         """Top view: walk `sec` seconds. Jump only if the sign was in view and
         didn't move at all (a block in the way). Plain sand from above looks the
         same everywhere, so the picture itself can't tell us we're stuck."""
-        before = self.v.sign_top(self.v.grab())
+        img = self.v.grab()
+        side = {"w": "top", "s": "bottom", "a": "left", "d": "right"}[key]
+        st = self.v.border_strips(img)
+        if side in st:
+            c = C.CHAR_POS[0] if side in ("left", "right") else C.CHAR_POS[1]
+            if abs(st[side] - c) <= C.MOVE_EDGE_STOP_BLOCKS * self.ppb:
+                log.info("safety: edge of the top right %s of us, not stepping that way", side)
+                return
+        before = self.v.sign_top(img)
         self.moves = getattr(self, "moves", 0) + 1
         if self.moves % C.JUMP_EVERY_MOVES == 0:
             self.c.hold("space", C.JUMP_HOLD_SEC)  # now and then: hop, unsticks us

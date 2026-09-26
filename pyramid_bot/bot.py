@@ -467,6 +467,7 @@ class Bot:
             self.v.save(self.v.grab(), "lost_landmark")
             return False
         log.info("%s spotted: walking toward it until the %s sign shows up", name, which)
+        unseen = 0
         for step in range(C.LANDMARK_WALK_STEPS):
             self.c.check()
             img = self.v.grab()
@@ -483,6 +484,11 @@ class Bot:
                 self.c.jump_forward()
             if step % C.LANDMARK_RECENTER_EVERY == 0:
                 off, _ = self.landmark(self.v.grab(), which)
+                unseen = 0 if off is not None else unseen + 1
+                if unseen >= 2:
+                    # the landmark is gone: it was a mistake, don't walk on
+                    log.warning("landmark lost from view: stopping")
+                    return False
         return False
 
     def pick_up(self):

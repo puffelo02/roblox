@@ -62,7 +62,7 @@ INDICATOR_HSV = ((36, 60, 90), (60, 255, 255))   # the green cube's color
 INDICATOR_SEARCH = (480, 470, 1440, 1000)         # only look around the character
 INDICATOR_MIN_AREA = 40
 INDICATOR_MAX_AREA = 4000
-BUILD_DUTY = 0.6          # share of time W is held while building (slower = blocks keep up)
+BUILD_DUTY = 0.5          # share of time W is held while building (slower = blocks keep up)
 BUILD_TICK_SEC = 0.1      # how often the screen is checked while building
 COUNTER_EVERY_SEC = 1.0   # counter OCR is slow: only read it this often
 CAPACITY_EVERY_SEC = 3.0
@@ -161,7 +161,7 @@ SAVE_SCREENSHOTS = True
 # walking to the middle from above
 MIDDLE_MAX_STEPS = 25     # pictures/steps at most
 MIDDLE_TOL = 2.0          # blocks: close enough to the middle
-MIDDLE_STEP_BLOCKS = 12   # longest step between two pictures
+MIDDLE_STEP_BLOCKS = 6    # longest step between two pictures
 EDGE_HIT_BLOCKS = 7.0     # an edge this close = "hit the edge": back to the middle
 EDGE_WATCH_BLOCKS = 15   # spiral legs ending this close to the edge watch for it
 # the PYRAMID sign seen from above hangs over the middle: standing right under
@@ -217,6 +217,8 @@ LEG_SCALE_MIN = 0.6       # learned leg corrections kept in this range
 LEG_SCALE_MAX = 1.15
 APPROACH_WIDTH_SHARE = 0.6  # on top: walk at most this share of the top's width toward the sign
 WALK_BACK_MAX_BLOCKS = 8  # lost: walk back at most this far
+MIDDLE_BAD_READS = 3      # sign readings bigger than the top this often: stop and look again
+MOVE_EDGE_STOP_BLOCKS = 3 # top view: an edge this close on the side we step to = don't step
 TOP_SAFE_MARGIN = 1.5     # never go closer than this (blocks) to the edge of the top
 SPB_MIN_RATIO = 0.5       # learned seconds-per-block kept within these x the default
 SPB_MAX_RATIO = 1.8
@@ -245,7 +247,7 @@ GYM_SAND_HUE = (6, 26)
 GYM_BAND_Y = (200, 620)
 GYM_MIN_SCORE = 300
 GYM_MIN_COLOURS = 4
-LANDMARK_WALK_STEPS = 120   # walk steps toward the gym before looking around again
+LANDMARK_WALK_STEPS = 60   # walk steps toward the gym before looking around again
 LANDMARK_RECENTER_EVERY = 8
 BLOCKS_TRIES = 3
 SIGN_LOST_WALK_CHECKS = 14 # BLOCKS sign out of render distance: keep walking this many steps first
