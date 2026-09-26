@@ -147,8 +147,8 @@ CLIMB_STEP_SEC = 0.25      # walk this long between blocked-checks while climbin
 CLIMB_FREE_STEPS = 3       # this many unblocked steps in a row = we're on the flat top
 
 # --- Hotkeys ---
-STOP_KEY = "f8"
-PAUSE_KEY = "f7"
+STOP_KEY = "m"
+PAUSE_KEY = "n"
 
 # --- Debug ---
 DEBUG_DIR = "debug"

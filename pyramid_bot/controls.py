@@ -21,7 +21,8 @@ class Controls:
         keyboard.Listener(on_press=self._on_key).start()
 
     def _on_key(self, key):
-        name = getattr(key, "name", None)
+        name = getattr(key, "name", None) or getattr(key, "char", None)  # F-keys or letters
+        name = name.lower() if isinstance(name, str) else name
         if name == C.STOP_KEY:
             self.stop = True
         elif name == C.PAUSE_KEY:

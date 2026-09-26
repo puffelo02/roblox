@@ -4,7 +4,7 @@ Loop:  walk to BLOCKS sign -> hold E until full -> walk to PYRAMID sign ->
 climb on top -> place along a shrinking clockwise spiral -> repeat.
 
 Run from the repo root:   python -m pyramid_bot.bot
-F7 = pause/resume, F8 = stop.
+N = pause/resume, M = stop (change in my_settings.py).
 """
 import logging
 import time
