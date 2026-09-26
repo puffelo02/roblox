@@ -539,6 +539,32 @@ class Vision:
         total = int(ring.sum())
         return cv2.countNonZero(panel & (ring * 255)) / total if total else 0.0
 
+    def pyramid_landmark(self, img):
+        """The pyramid's outline far away (its sign out of render distance):
+        a pale triangle above the horizon, i.e. rising diagonal edges on the
+        left and falling ones on the right. Returns offset -1..+1 or None."""
+        g = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (5, 5), 0)
+        e = cv2.Canny(g, 20, 60)
+        e[:int(140 * self.sy)] = 0
+        e[int(460 * self.sy):] = 0
+        e[:, :int(360 * self.sx)] = 0   # left HUD
+        e[:, int(1440 * self.sx):] = 0  # leaderboard
+        lines = cv2.HoughLinesP(e, 1, np.pi / 180, 40, minLineLength=int(60 * self.sx),
+                                maxLineGap=int(12 * self.sx))
+        left, right = [], []
+        for x1, y1, x2, y2 in (lines.reshape(-1, 4) if lines is not None else []):
+            a = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+            a = (a + 90) % 180 - 90
+            if 20 < abs(a) < 60:
+                (left if a < 0 else right).append((x1 + x2) / 2)
+        if not left or not right:
+            return None
+        lx, rx = np.median(left), np.median(right)
+        if not lx < rx < lx + 900 * self.sx:
+            return None
+        x = (lx + rx) / 2
+        return (x - img.shape[1] / 2) / (img.shape[1] / 2)
+
     def gym_landmark(self, img):
         """The gym/shop area: a cluster of many different bright colours near
         the horizon (the desert is all one sandy hue). Seen from much farther

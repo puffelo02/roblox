@@ -278,9 +278,9 @@ class Bot:
                 # the way we're facing for a while before looking around again
                 if missing >= (C.SIGN_LOST_WALK_CHECKS if which == "blocks" else C.SIGN_GONE_CHECKS):
                     # lost it: look around standing still
-                    if not self.face_sign(which) and which == "blocks":
+                    if not self.face_sign(which):
                         # nowhere in sight: don't keep walking blind into the desert
-                        log.warning("blocks sign gone all around: stop walking blind")
+                        log.warning("%s sign gone all around: stop walking blind", which)
                         return False
                     missing = 0
                 elif self.walk_step_blocked(C.WALK_STEP_SEC):
@@ -293,9 +293,8 @@ class Bot:
                 searched += C.TURN_90_SEC / 3
                 if searched > C.TURN_180_SEC * 2.5:
                     self.v.save(img, f"lost_{which}")
-                    log.warning("can't find %s sign", which)
-                    searched = 0.0
-                    self.c.hold("w", C.WALK_STEP_SEC * 2)
+                    log.warning("can't find %s sign: not walking on blind", which)
+                    return False
                 continue
             searched = 0.0
             if strafe:
@@ -364,7 +363,7 @@ class Bot:
                 # distance: head for the colourful gym next to it until it shows
                 if not self.find_sign_any_pitch("blocks"):
                     self.nav.reset_camera()
-                    self.head_to_landmark()
+                    self.head_to_landmark("blocks")
             if self.walk_to_sign(
                 "blocks", lambda img, px: self.v.pickup_prompt_visible(img), strafe=True
             ):
@@ -372,10 +371,21 @@ class Bot:
             log.warning("didn't reach BLOCKS (try %d/%d)", attempt + 1, C.BLOCKS_TRIES)
         return False
 
-    def head_to_landmark(self):
-        """No BLOCKS sign anywhere (too far away). Turn until the gym's cluster
-        of colours is in view, then walk at it (jumping over things) until the
-        BLOCKS sign shows up. True once the sign is in view."""
+    def landmark(self, img, which):
+        """Where a far-away landmark is: for the pyramid its outline first,
+        otherwise the colourful gym next to both. (offset, name) or (None, None)."""
+        if which == "pyramid":
+            off = self.v.pyramid_landmark(img)
+            if off is not None:
+                return off, "pyramid outline"
+        off = self.v.gym_landmark(img)
+        return (off, "gym") if off is not None else (None, None)
+
+    def head_to_landmark(self, which):
+        """No sign anywhere (too far away). Stand still and turn until a known
+        landmark (pyramid outline / gym colours) is in view, then walk at it
+        (jumping over things) until the sign shows up. Nothing recognised: stay
+        put rather than wander. True once the sign is in view."""
         t90 = self.nav.turn90
         turned = 0.0
         off = None
@@ -384,27 +394,27 @@ class Bot:
             img = self.v.grab()
             if self.close_menu(img):
                 continue
-            if self.v.find_sign(img, "blocks")[0] is not None:
-                return self.face_sign("blocks")
-            off = self.v.gym_landmark(img)
+            if self.v.find_sign(img, which)[0] is not None:
+                return self.face_sign(which)
+            off, name = self.landmark(img, which)
             if off is not None:
                 break
             self.c.turn_right(t90 / 4)
             turned += t90 / 4
             self.c.sleep(0.1)
         if off is None:
-            log.warning("no gym landmark in sight either")
+            log.warning("no landmark in sight either: staying put")
             self.v.save(self.v.grab(), "lost_landmark")
             return False
-        log.info("gym landmark spotted: walking toward it until BLOCKS shows up")
+        log.info("%s spotted: walking toward it until the %s sign shows up", name, which)
         for step in range(C.LANDMARK_WALK_STEPS):
             self.c.check()
             img = self.v.grab()
             if self.close_menu(img):
                 continue
-            if self.v.find_sign(img, "blocks")[0] is not None:
-                log.info("BLOCKS sign in sight on the way to the gym")
-                return self.face_sign("blocks")
+            if self.v.find_sign(img, which)[0] is not None:
+                log.info("%s sign in sight on the way", which)
+                return self.face_sign(which)
             if off is not None and abs(off) >= C.FACE_SIGN_OK:
                 (self.c.turn_left if off < 0 else self.c.turn_right)(
                     abs(off) * C.HALF_FOV_DEG / 90 * t90)
@@ -412,7 +422,7 @@ class Bot:
             if self.walk_step_blocked(C.WALK_STEP_SEC):
                 self.c.jump_forward()
             if step % C.LANDMARK_RECENTER_EVERY == 0:
-                off = self.v.gym_landmark(self.v.grab())
+                off, _ = self.landmark(self.v.grab(), which)
         return False
 
     def pick_up(self):
@@ -474,13 +484,22 @@ class Bot:
     def go_to_pyramid(self):
         log.info("-> PYRAMID")
         self.saw_pyramid_sign = False
-        self.nav.reset_camera()
-        self.find_sign_any_pitch("pyramid")  # find the word first, standing still
-        ok = self.walk_to_sign(
-            "pyramid",
-            lambda img, px: px > C.PYRAMID_SIGN_ARRIVED_PIXELS * self.v.sx * self.v.sy,
-            stop_when_blocked=True, strafe=True,
-        )
+        ok = False
+        for attempt in range(C.BLOCKS_TRIES):
+            self.nav.reset_camera()
+            # find the word first, standing still; too far away: head for the
+            # pyramid's outline (or the gym) until the sign shows up
+            if not self.find_sign_any_pitch("pyramid"):
+                self.nav.reset_camera()
+                self.head_to_landmark("pyramid")
+            ok = self.walk_to_sign(
+                "pyramid",
+                lambda img, px: px > C.PYRAMID_SIGN_ARRIVED_PIXELS * self.v.sx * self.v.sy,
+                stop_when_blocked=True, strafe=True,
+            )
+            if ok:
+                break
+            log.warning("didn't reach the pyramid (try %d/%d)", attempt + 1, C.BLOCKS_TRIES)
         if ok:
             self.c.hold("w", C.PLOT_ENTER_SEC)
         return ok

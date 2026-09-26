@@ -53,9 +53,16 @@ class Navigator:
     def spb(self):
         """Seconds per block. Not measured yet (new PC): a starting value from
         a real run, scaled to the current Walk Speed; corrected as we walk."""
+        ref = self.spb_default
         v = self.cal.get("sec_per_block")
         if v:
-            return v
+            # a bad learned value (e.g. 0.63 from falling while "measuring")
+            # makes every step 15x too long: keep it near the expected value
+            return min(max(v, ref * C.SPB_MIN_RATIO), ref * C.SPB_MAX_RATIO)
+        return ref
+
+    @property
+    def spb_default(self):
         ws = self.cal.get("walkspeed") or C.DEFAULT_WALKSPEED
         return C.DEFAULT_SEC_PER_BLOCK * C.DEFAULT_WALKSPEED / ws
 
@@ -553,7 +560,13 @@ class Navigator:
                     break
                 ax, d = ("x", nx) if abs(nx) >= abs(ny) else ("y", ny)
                 key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
-                self.move_step(key, max(0.05, min(abs(d) * C.MIDDLE_GAIN, C.MIDDLE_STEP_BLOCKS) * self.spb))
+                # small top (pyramid almost done): short careful steps, never
+                # more than a part of the top's half-width at once
+                cap = min(C.MIDDLE_STEP_BLOCKS, max(C.MIDDLE_MIN_CAP_BLOCKS, half * C.MIDDLE_CAP_OF_HALF))
+                if abs(d) > half + 2:
+                    # farther than the top is wide: the reading can't be trusted
+                    cap = C.MIDDLE_MIN_CAP_BLOCKS
+                self.move_step(key, max(0.05, min(abs(d) * C.MIDDLE_GAIN, cap) * self.spb))
                 prev = None
                 no_sign = 0
                 continue
@@ -848,6 +861,9 @@ class Navigator:
             if moved_px > 25:
                 # how far that really went: keep seconds-per-block honest
                 spb = sec / (moved_px / self.ppb)
+                ref = self.spb_default
+                if not ref * C.SPB_MIN_RATIO <= spb <= ref * C.SPB_MAX_RATIO:
+                    spb = self.spb  # jumped/fell/blocked mid-step: not a real measurement
                 new = round(0.7 * self.spb + 0.3 * spb, 5)
                 if abs(new - self.spb) / self.spb > 0.03:
                     log.info("speed check: %.4fs per block (was %.4f)", new, self.spb)

@@ -198,6 +198,10 @@ STAIRS_TOP_MIN_LINES = 5  # top view: this many stair lines on one side = the py
 PITCH_SEARCH_TRIES = 1    # tilt the camera up this many times looking for a sign
 PITCH_SEARCH_PX = 120     # right-drag per tilt step
 CLIMB_TEST_STEP_SEC = 0.25  # walk test while climbing: on stairs this always hits the next step
+SPB_MIN_RATIO = 0.5       # learned seconds-per-block kept within these x the default
+SPB_MAX_RATIO = 1.8
+MIDDLE_MIN_CAP_BLOCKS = 1.5  # centring steps never shorter than this cap...
+MIDDLE_CAP_OF_HALF = 0.35    # ...nor longer than this share of the top's half-width
 MIDDLE_GAIN = 0.6         # move this share of the way to the A per step (no overshooting)
 FELL_OFF_CHECKS = 3       # sign missing this many checks in a row before looking for stairs
 PYRAMID_AHEAD_ROWS = 6    # stair lines straight ahead = the pyramid is right there
