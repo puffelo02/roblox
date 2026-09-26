@@ -194,6 +194,9 @@ STAIRS_AHEAD_REGION = (300, 250, 1620, 540)  # above the character's feet = in f
 STAIRS_MIN_LEN = 300
 STAIRS_MIN_ROWS = 2       # this many long step lines ahead = stairs, keep jumping
 CLIMB_MAX_JUMPS = 80
+TOP_JUMPS_RATIO = 0.8   # fewer jumps than this share of the built layers: not the top yet
+LOOK_UP_PX = 260        # right-drag up to see the sign high above an almost-done pyramid
+LOOK_UP_MAX = 4
 STAIRS_TOP_MIN_LINES = 5  # top view: this many stair lines on one side = the pyramid is that way
 PITCH_SEARCH_TRIES = 1    # tilt the camera up this many times looking for a sign
 PITCH_SEARCH_PX = 120     # right-drag per tilt step

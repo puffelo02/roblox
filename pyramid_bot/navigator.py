@@ -493,6 +493,7 @@ class Navigator:
         """Screenshot; stairs or an obstacle in front: jump up. Nothing in front:
         we're on top, stop."""
         clear = 0
+        looks = 0
         for jumps in range(C.CLIMB_MAX_JUMPS):
             self.c.check()
             img = self.v.grab()
@@ -509,10 +510,60 @@ class Navigator:
                 continue
             clear += 1
             if clear >= 2:  # twice in a row: really flat ahead
+                if self.higher_up(jumps):
+                    clear = 0
+                    looks += 1
+                    if looks <= C.LOOK_UP_MAX:
+                        continue
                 log.info("on top: no stairs or obstacle ahead (%d jumps)", jumps)
                 return True
         log.warning("still stairs ahead after %d jumps", C.CLIMB_MAX_JUMPS)
         return False
+
+    def expected_layers(self):
+        cur = self.b.last_counter
+        base = G.base_size(cur[1]) if cur else None
+        return G.layer_info(cur[0], base)[0] if base else 0
+
+    def higher_up(self, jumps):
+        """Flat ahead, but is this really the top? An almost-finished pyramid is
+        tall: if we've jumped far fewer steps than there are layers, we're on a
+        wide ledge. Tilt the camera up: the PYRAMID sign hangs high above the
+        real top. Seen: turn to it and keep climbing (True)."""
+        layers = self.expected_layers()
+        if not layers or jumps >= layers * C.TOP_JUMPS_RATIO:
+            return False
+        log.info("flat ahead after %d jumps but %d layers built: looking up for the sign",
+                 jumps, layers)
+        t90 = self.turn90
+        tilt = C.LOOK_UP_PX
+        self.c.right_drag(-tilt)
+        found = False
+        try:
+            turned = 0.0
+            while turned < t90 * 4:
+                self.c.check()
+                img = self.v.grab()
+                off = self.v.find_sign(img, "pyramid")[0]
+                if off is None and self.v.stairs_ahead(img) >= C.STAIRS_MIN_ROWS:
+                    off = 0.0  # the steps going on up right ahead
+                if off is not None:
+                    if abs(off) >= C.FACE_SIGN_OK:
+                        (self.c.turn_left if off < 0 else self.c.turn_right)(
+                            abs(off) * C.HALF_FOV_DEG / 90 * t90)
+                    found = True
+                    break
+                self.c.turn_right(t90 / 4)
+                turned += t90 / 4
+                self.c.sleep(0.1)
+        finally:
+            self.c.right_drag(tilt)  # back to the climbing view
+        if found:
+            log.info("the top is higher up that way: climbing on")
+            self.c.jump_forward(0.25)
+        else:
+            log.info("nothing higher in sight: treating this as the top")
+        return found
 
     def check_walkspeed(self):
         """Time per block depends on Walk Speed: rescale if it changed."""
