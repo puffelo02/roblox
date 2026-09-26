@@ -719,6 +719,11 @@ class Bot:
 
     # ---------- main loop ----------
     def run(self):
+        try:
+            with open("VERSION.txt") as f:
+                log.info("bot version %s", f.read().strip())
+        except OSError:
+            log.info("bot version unknown (not started through run.py)")
         log.info("starting in 5 seconds: click on the Roblox window now")
         time.sleep(5)
         try:

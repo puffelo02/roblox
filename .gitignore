@@ -3,3 +3,4 @@ debug/
 *.log
 calibration.json
 config_backup.py
+VERSION.txt
