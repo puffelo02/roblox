@@ -757,6 +757,103 @@ class Navigator:
         self.x, self.y = x, y
         return True
 
+    def offset_from_middle(self, img):
+        """Top view: where we are relative to the middle, in blocks
+        (+x = right, +y = up on screen), from the sign. None if not seen."""
+        sign = self.v.sign_top(img, allow_edge=True)
+        if sign is None:
+            return None
+        tx = C.CHAR_POS[0] + C.SIGN_MIDDLE_OFFSET[0]
+        ty = C.CHAR_POS[1] + C.SIGN_MIDDLE_OFFSET[1]
+        return -(sign[0] - tx) / self.ppb, (sign[1] - ty) / self.ppb
+
+    def _build_status(self, state, completed):
+        """Counter / capacity checks while building. "layer", "done", "empty",
+        "lost" or None."""
+        cur = self.b.counter()
+        if cur:
+            if cur[0] > state["last_n"]:
+                state["last_n"] = cur[0]
+                state["last_rise"] = time.time()
+            n = G.layer_info(cur[0], self.base)[0]
+            if n > completed:
+                log.info("layer %d finished!", completed + 1)
+                state["layer"] = n
+                return "layer"
+        if self.b.pyramid_done():
+            return "done"
+        if self.b.empty():
+            return "empty"
+        if time.time() - state["last_rise"] > C.LOST_SEC_LATE:
+            log.info("nothing placed for %ds", C.LOST_SEC_LATE)
+            return "lost"
+        return None
+
+    def guided_rings(self, state, completed, side, left):
+        """Square laps around the middle, every step steered by the sign (no
+        dead reckoning, no guessed top size): read where we are from the
+        sign, take a short step toward the next corner, look again. The laps
+        never go further out than the top allows minus a safety margin; if
+        the sign is lost we stop and head back toward the middle."""
+        half = side / 2
+        outer = half - self.safe_margin() - 1
+        built = (1 - left) ** 0.5 * half  # the middle part already placed
+        r = max(C.LANE_BLOCKS / 2, built - C.LANE_BLOCKS / 2)
+        radii = []
+        while r <= outer:
+            radii.append(r)
+            r += C.LANE_BLOCKS
+        if not radii or radii[-1] < outer - 1:
+            radii.append(max(outer, C.LANE_BLOCKS / 2))
+        log.info("layer %d (%dx%d, %d%% done): sign-guided laps at %s blocks from the middle",
+                 completed + 1, side, side, 100 - left * 100,
+                 ", ".join("%.0f" % x for x in radii))
+        self.camera_top()
+        self.c.down("e")
+        state["last_rise"] = time.time()
+        last = (0.0, 0.0)
+        misses = 0
+        for r in radii:
+            for cx, cy in ((-r, -r), (r, -r), (r, r), (-r, r), (-r, -r)):
+                for _ in range(C.GUIDED_MAX_STEPS):
+                    self.c.check()
+                    st = self._build_status(state, completed)
+                    if st:
+                        return st
+                    img = self.v.grab()
+                    if self.b.close_menu(img):
+                        self.c.down("e")
+                        continue
+                    pos = self.offset_from_middle(img)
+                    if pos is None or max(abs(pos[0]), abs(pos[1])) > half + 2:
+                        misses += 1
+                        if misses >= C.GUIDED_MISS_LIMIT:
+                            # lost the sign: step back toward where the middle was
+                            log.info("guided laps: sign lost, stepping back toward the middle")
+                            key = ("a" if last[0] > 0 else "d") if abs(last[0]) >= abs(last[1]) \
+                                else ("s" if last[1] > 0 else "w")
+                            self.c.hold(key, C.GUIDED_STEP_BLOCKS * self.spb)
+                            if misses >= 2 * C.GUIDED_MISS_LIMIT:
+                                return "lost"
+                        self.c.sleep(0.1)
+                        continue
+                    misses = 0
+                    last = pos
+                    dx, dy = cx - pos[0], cy - pos[1]
+                    if abs(dx) <= 1.0 and abs(dy) <= 1.0:
+                        break  # at this corner
+                    ax, d = ("x", dx) if abs(dx) >= abs(dy) else ("y", dy)
+                    key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
+                    # never step past the lap's edge (the sign says where we are)
+                    v = pos[0] if ax == "x" else pos[1]
+                    room = outer - v * (1 if d > 0 else -1)
+                    step = min(abs(d), C.GUIDED_STEP_BLOCKS, max(0.0, room))
+                    if step < 0.4:
+                        break
+                    self.move_step(key, step * self.spb)
+        # all laps done: stand in the middle while the rest fills in
+        return self.stay_middle(state, completed)
+
     def stay_middle(self, state, completed):
         """Almost done: stand under the A holding E and only step a couple of
         blocks around it (the placing radius covers the rest), re-centring on
@@ -1346,6 +1443,22 @@ class Navigator:
                     # small top: the placing radius reaches the edges from the
                     # middle. Stay there, only shuffle a couple of blocks
                     status = self.stay_middle(state, completed)
+                    if status == "layer":
+                        self.c.release_all()
+                        self.c.down("e")
+                        self.just_finished = True
+                        lost_restarts = 0
+                        continue
+                    if status == "lost" and lost_restarts < C.MAX_MIDDLE_RESTARTS:
+                        lost_restarts += 1
+                        if not self.recover(completed):
+                            return "lost"
+                        continue
+                    return status
+                if side / 2 <= C.GUIDED_MAX_HALF:
+                    # small top: no dead-reckoned spiral (its size estimate is
+                    # what walked us off). Laps steered by the sign every step
+                    status = self.guided_rings(state, completed, side, left)
                     if status == "layer":
                         self.c.release_all()
                         self.c.down("e")

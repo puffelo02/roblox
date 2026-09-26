@@ -179,7 +179,7 @@ ARRIVE_BLOCKS = 0.5       # a leg is done this close to its end (seen from the s
 WALL_SIGN_FAR_PX = 400   # pyramid sign smaller than this (and low on screen) = still far away
 WALL_SIGN_FAR_Y = 200
 MIDDLE_BLIND_STEPS = 8    # after climbing: walk ahead (5 blocks) up to this many times until the sign shows
-TOP_ALIGN_OK_DEG = 1.5   # top view: edges this close to level = camera square
+TOP_ALIGN_OK_DEG = 3.0   # top view: edges this close to level = camera square
 FAR_SIGN_MIN_PIXELS = 12  # the PYRAMID sign from far away (tiny thin text in the sky)
 STRAFE_GAIN = 1.2         # sidestep seconds per unit of sign offset (-1..1) on the way to the pyramid
 STRAFE_MAX_SEC = 0.3
@@ -222,6 +222,10 @@ APPROACH_WIDTH_SHARE = 0.6  # on top: walk at most this share of the top's width
 WALK_BACK_MAX_BLOCKS = 8  # lost: walk back at most this far
 MIDDLE_BAD_READS = 3      # sign readings bigger than the top this often: stop and look again
 MOVE_EDGE_STOP_BLOCKS = 3 # top view: an edge this close on the side we step to = don't step
+GUIDED_MAX_HALF = 32      # tops up to this half-width: sign-guided laps instead of the spiral
+GUIDED_STEP_BLOCKS = 3.0  # step between two looks at the sign
+GUIDED_MAX_STEPS = 40     # steps toward one corner at most
+GUIDED_MISS_LIMIT = 4     # sign not seen this many looks in a row: head back
 STAY_MIDDLE_PROGRESS = 0.8  # pyramid this far built: stay in the middle, radius does the rest
 STAY_WIGGLE_BLOCKS = 2.0  # ...only stepping this far around the A
 STAY_PAUSE_SEC = 0.4
