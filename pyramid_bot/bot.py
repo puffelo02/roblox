@@ -128,6 +128,14 @@ class Bot:
         base = G.base_size(cur[1])
         return bool(base) and G.layer_info(cur[0], base)[0] == 0
 
+    def no_layer_low(self):
+        """Only a few layers built: flat enough to stand on without noticing."""
+        cur = self.last_counter
+        if not cur:
+            return False
+        base = G.base_size(cur[1])
+        return bool(base) and G.layer_info(cur[0], base)[0] <= C.LOW_PYRAMID_LAYERS
+
     def pyramid_done(self):
         return self.last_counter is not None and self.last_counter[0] >= self.last_counter[1]
 
@@ -216,7 +224,7 @@ class Bot:
             img = self.v.grab()
             if self.close_menu(img):
                 continue
-            off = self.sign_or_shape(img, which)
+            off = self.v.find_sign(img, which)[0]
             if off is not None and which == "pyramid":
                 self.saw_pyramid_sign = True
             if off is None and which == "pyramid" and not strict and self.pyramid_ahead(img):
@@ -242,6 +250,8 @@ class Bot:
         last_y = None
         missing = 0
         detours = 0
+        last_off = None
+        last_top_check = time.time()
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
             img = self.v.grab()
@@ -251,10 +261,27 @@ class Bot:
             by_shape = False
             if which == "pyramid" and offset is None:
                 # sign hidden behind the top UI bar (or out of range): the
-                # pyramid's own shape tells us where it is just as well
+                # pyramid's own shape tells us where it is just as well. Only
+                # if it's where the sign was: other players' pyramids look alike
                 offset = self.v.pyramid_landmark(img)
+                if offset is not None and last_off is not None \
+                        and abs(offset - last_off) > C.SHAPE_MATCH_SIGN:
+                    offset = None
                 by_shape = offset is not None
                 pixels = 0
+            elif which == "pyramid":
+                last_off = offset
+            if which == "pyramid" and self.no_layer_low() \
+                    and time.time() - last_top_check > C.LOW_TOP_CHECK_SEC:
+                # low pyramid: we may be standing on it already, far from the
+                # sign. Look down: sign below us = we're on top
+                last_top_check = time.time()
+                self.nav.camera_top()
+                here = self.v.sign_top(self.v.grab(), allow_edge=True)
+                self.nav.camera_normal()
+                if here is not None:
+                    log.info("low pyramid: the sign is below us in the top view: arrived")
+                    return True
             if which == "pyramid" and offset is not None:
                 self.saw_pyramid_sign = True
             if which == "pyramid" and offset is None and self.pyramid_ahead(img):

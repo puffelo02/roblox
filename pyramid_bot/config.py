@@ -179,6 +179,9 @@ TOP_ALIGN_OK_DEG = 1.5   # top view: edges this close to level = camera square
 FAR_SIGN_MIN_PIXELS = 12  # the PYRAMID sign from far away (tiny thin text in the sky)
 STRAFE_GAIN = 1.2         # sidestep seconds per unit of sign offset (-1..1) on the way to the pyramid
 STRAFE_MAX_SEC = 0.3
+SHAPE_MATCH_SIGN = 0.35   # pyramid outline only counts near where our sign was
+LOW_PYRAMID_LAYERS = 5    # up to this many layers: check the top view while walking
+LOW_TOP_CHECK_SEC = 5
 CENTER_SIGN_TRIES = 6     # turn-and-look steps to get the sign dead centre
 CENTER_SIGN_GAIN = 0.85
 FACE_SIGN_OK = 0.12       # sign this close to the screen centre = facing it
