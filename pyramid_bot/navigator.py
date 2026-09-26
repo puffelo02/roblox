@@ -500,6 +500,12 @@ class Navigator:
             img = self.v.grab()
             if self.b.close_menu(img):
                 continue
+            off = self.v.find_sign(img, "pyramid")[0]
+            if off is not None and abs(off) > C.STEER_TOLERANCE:
+                # keep the sign dead ahead while climbing: on a narrow, almost
+                # finished pyramid drifting sideways walks us off the steps
+                self.b.center_on_sign("pyramid", off)
+                img = self.v.grab()
             rows = self.v.stairs_ahead(img)
             if rows >= C.STAIRS_MIN_ROWS:
                 clear = 0
@@ -745,6 +751,54 @@ class Navigator:
             log.info("sign says (%.1f, %.1f), thought (%.1f, %.1f)", x, y, self.x, self.y)
         self.x, self.y = x, y
         return True
+
+    def stay_middle(self, state, completed):
+        """Almost done: stand under the A holding E and only step a couple of
+        blocks around it (the placing radius covers the rest), re-centring on
+        the sign every round. Never heads for the edges.
+        Returns "layer", "empty", "done" or "lost"."""
+        log.info("layer %d: pyramid %d%%+ built: staying in the middle",
+                 completed + 1, int(C.STAY_MIDDLE_PROGRESS * 100))
+        self.c.down("e")
+        state["last_rise"] = time.time()
+        pattern = ("w", "d", "s", "s", "a", "a", "w", "w", "d")  # small square around the A
+        k = 0
+        while True:
+            self.c.check()
+            img = self.v.grab()
+            if self.b.close_menu(img):
+                self.c.down("e")
+                continue
+            cur = self.b.counter(img)
+            if cur:
+                if cur[0] > state["last_n"]:
+                    state["last_n"] = cur[0]
+                    state["last_rise"] = time.time()
+                if G.layer_info(cur[0], self.base)[0] > completed:
+                    log.info("layer %d finished!", completed + 1)
+                    state["layer"] = G.layer_info(cur[0], self.base)[0]
+                    return "layer"
+            if self.b.pyramid_done():
+                return "done"
+            if self.b.empty():
+                return "empty"
+            if time.time() - state["last_rise"] > C.LOST_SEC_LATE:
+                log.info("middle: nothing placed for %ds", C.LOST_SEC_LATE)
+                return "lost"
+            if k % len(pattern) == 0:
+                # back under the A (small, careful steps)
+                if not self.go_middle(completed):
+                    return "lost"
+                self.c.down("e")
+            key = pattern[k % len(pattern)]
+            k += 1
+            step = C.STAY_WIGGLE_BLOCKS
+            room = self.safe_room(self.sign_pos(img), key)
+            if room is not None:
+                step = min(step, room)
+            if step > 0.3:
+                self.c.hold(key, step * self.spb)
+            self.c.sleep(C.STAY_PAUSE_SEC)
 
     def cleanup_top(self, state, lo, hi):
         """Last few blocks of a layer, still looking straight down: walk to the
@@ -1283,6 +1337,22 @@ class Navigator:
                     return "done"
                 left = 1 - placed / (side * side)
                 lo, hi = G.layer_bounds(completed, base)
+                if cur[1] and cur[0] / cur[1] >= C.STAY_MIDDLE_PROGRESS:
+                    # small top: the placing radius reaches the edges from the
+                    # middle. Stay there, only shuffle a couple of blocks
+                    status = self.stay_middle(state, completed)
+                    if status == "layer":
+                        self.c.release_all()
+                        self.c.down("e")
+                        self.just_finished = True
+                        lost_restarts = 0
+                        continue
+                    if status == "lost" and lost_restarts < C.MAX_MIDDLE_RESTARTS:
+                        lost_restarts += 1
+                        if not self.recover(completed):
+                            return "lost"
+                        continue
+                    return status
                 tries = passes.get(completed, 0)
                 passes[completed] = tries + 1
                 spiral = left >= C.CLEANUP_BELOW and tries < 3
