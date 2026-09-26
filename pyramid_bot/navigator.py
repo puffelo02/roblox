@@ -652,6 +652,19 @@ class Navigator:
             log.info("couldn't confirm the middle with the sign")
         return centred
 
+    def safe_room(self, pos, key):
+        """Top view safety: how many blocks we may still go with `key` before
+        getting closer than TOP_SAFE_MARGIN to the edge of the top we stand
+        on (the top finished layer). None if we can't tell."""
+        if pos is None or not self.base:
+            return None
+        completed = self.expected_layers()
+        half = (self.base - 2 * max(0, completed - 1)) / 2
+        mid = self.base / 2
+        v = pos[0] if key in ("a", "d") else pos[1]
+        ahead = 1 if key in ("d", "w") else -1
+        return half - C.TOP_SAFE_MARGIN - (v - mid) * ahead
+
     def sign_pos(self, img):
         """Our (x, y) on the layer from the sign's spot on screen, or None."""
         sign = self.v.sign_top(img)
@@ -732,8 +745,18 @@ class Navigator:
                 dx, dy = cube[0] / self.ppb, -cube[1] / self.ppb  # blocks, +y = up
                 ax, d = ("x", dx) if abs(dx) >= abs(dy) else ("y", dy)
                 key = ("d" if d > 0 else "a") if ax == "x" else ("w" if d > 0 else "s")
-                self.c.hold(key, max(0.3, min(abs(d), 6)) * self.spb)
-                continue
+                step = max(0.3, min(abs(d), 6))
+                room = self.safe_room(self.sign_pos(img), key)
+                if room is not None:
+                    if room <= 0.3:
+                        # that cube is past the edge of the top (the layer
+                        # below?): don't follow it off, go on with the laps
+                        cube = None
+                    else:
+                        step = min(step, room)
+                if cube is not None:
+                    self.c.hold(key, step * self.spb)
+                    continue
             # nothing in view: next point along a lap near the edges
             tx, ty = laps[li % len(laps)]
             li += 1
@@ -1010,6 +1033,12 @@ class Navigator:
                             self.goal_hit = True
                             return None
                         duration = max(duration, moved + abs(target - v) * self.spb * 1.5)
+                if self.top_view:
+                    room = self.safe_room(self.sign_pos(img), key)
+                    if room is not None and room <= 0:
+                        # about to walk off the top: this leg ends here
+                        log.info("safety: edge of the top ahead (%s), stopping this leg", key.upper())
+                        return None
                 if edge_stop and self.edge_close(img, {"w": "top", "s": "bottom",
                                                        "a": "left", "d": "right"}[key]):
                     return "edge"
@@ -1055,6 +1084,12 @@ class Navigator:
                     # flat baseplate nothing stops us from wandering off)
                     back = {"w": "s", "s": "w", "a": "d", "d": "a"}[key]
                     walked = min(idle, limit) * C.BUILD_DUTY
+                    # never more than a few blocks, and never past the top's edge
+                    blocks = min(walked / self.spb, C.WALK_BACK_MAX_BLOCKS)
+                    room = self.safe_room(self.sign_pos(img), back) if self.top_view else None
+                    if room is not None:
+                        blocks = max(0.0, min(blocks, room))
+                    walked = blocks * self.spb
                     self.c.up(key)
                     log.info("walking back %.1fs (%s) to where blocks were going down", walked, back.upper())
                     self.c.hold(back, walked)
