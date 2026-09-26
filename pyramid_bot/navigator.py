@@ -590,9 +590,9 @@ class Navigator:
                 break
         if not ws:
             return
-        if ws != C.DEFAULT_WALKSPEED:
-            # the player sometimes raises it by hand for a moment; the bot
-            # always plays at the normal speed: ignore other readings
+        if ws > C.WALKSPEED_MAX_TRUST:
+            # the player sometimes raises it by hand for a moment to look
+            # around: ignore such readings, the bot plays at normal speed
             log.info("Walk Speed reads %s: treating it as %s", ws, C.DEFAULT_WALKSPEED)
             ws = C.DEFAULT_WALKSPEED
         # older calibrations didn't store it: they were measured at 30
