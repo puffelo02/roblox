@@ -32,6 +32,8 @@ def update():
     data = urllib.request.urlopen(url, timeout=30).read()
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         root = z.namelist()[0].split("/")[0]
+        # GitHub stores the commit id in the zip itself
+        sha = z.comment.decode(errors="ignore").strip() or sha
         # keep a copy of your config in case you changed values in it
         cfg = os.path.join(HERE, "pyramid_bot", "config.py")
         if os.path.exists(cfg):
@@ -44,9 +46,8 @@ def update():
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             with z.open(name) as src, open(dest, "wb") as out:
                 out.write(src.read())
-    if sha:
-        with open(os.path.join(HERE, "VERSION.txt"), "w") as f:
-            f.write(sha[:7] + "\n")
+    with open(os.path.join(HERE, "VERSION.txt"), "w") as f:
+        f.write((sha[:7] if sha else "latest") + "\n")
     print("Updated to version", sha[:7] if sha else "(latest)",
           "\n(Put your own settings in my_settings.py: updates never overwrite it)")
     subprocess.call([sys.executable, "-m", "pip", "install", "-q", "-r",

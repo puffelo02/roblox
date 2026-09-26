@@ -7,6 +7,7 @@ Run from the repo root:   python -m pyramid_bot.bot
 N = pause/resume, M = stop (change in my_settings.py).
 """
 import logging
+import os
 import time
 
 from . import config as C
@@ -720,7 +721,8 @@ class Bot:
     # ---------- main loop ----------
     def run(self):
         try:
-            with open("VERSION.txt") as f:
+            with open(os.path.join(os.path.dirname(os.path.dirname(
+                    os.path.abspath(__file__))), "VERSION.txt")) as f:
                 log.info("bot version %s", f.read().strip())
         except OSError:
             log.info("bot version unknown (not started through run.py)")
