@@ -447,21 +447,30 @@ class Bot:
         (jumping over things) until the sign shows up. Nothing recognised: stay
         put rather than wander. True once the sign is in view."""
         t90 = self.nav.turn90
-        turned = 0.0
         off = None
-        while turned < t90 * 4:
-            self.c.check()
-            img = self.v.grab()
-            if self.close_menu(img):
-                continue
-            if self.v.find_sign(img, which)[0] is not None:
-                return self.face_sign(which)
-            off, name = self.landmark(img, which)
+        for scan in range(2):
+            if scan == 1:
+                # second look: zoom out all the way and tilt up a little, the
+                # gym / pyramid may just be outside the normal view
+                log.info("no landmark: zooming out and looking around again")
+                self.c.hold("o", C.ZOOM_OUT_SEC)
+                self.c.right_drag(-C.PITCH_SEARCH_PX // 2)
+            turned = 0.0
+            while turned < t90 * 4:
+                self.c.check()
+                img = self.v.grab()
+                if self.close_menu(img):
+                    continue
+                if self.v.find_sign(img, which)[0] is not None:
+                    return self.face_sign(which)
+                off, name = self.landmark(img, which)
+                if off is not None:
+                    break
+                self.c.turn_right(t90 / 8)
+                turned += t90 / 8
+                self.c.sleep(0.1)
             if off is not None:
                 break
-            self.c.turn_right(t90 / 4)
-            turned += t90 / 4
-            self.c.sleep(0.1)
         if off is None:
             log.warning("no landmark in sight either: staying put")
             self.v.save(self.v.grab(), "lost_landmark")

@@ -45,10 +45,6 @@ TURN_180_SEC = 1.58
 STEER_TAP_SEC = 0.05      # small correction turn while walking to a sign
 STEER_TOLERANCE = 0.03    # sign within +-3% of screen center = go straight
 WALK_STEP_SEC = 0.25      # one walking step toward a sign
-# timed walking steps above, tuned at Walk Speed 64, shortened at higher speeds
-SPEED_SCALED = ("WALK_STEP_SEC", "PLOT_ENTER_SEC", "CLIMB_TEST_STEP_SEC", "STRAFE_MAX_SEC")
-MIN_KEY_SEC = 0.04        # shortest key press the game reliably notices
-WALKSPEED_WARN = 150      # above this Walk Speed: warn in the log
 STEPS_REGION = (480, 300, 1440, 1000)  # where to count the pyramid's stacked step edges
 PYRAMID_MIN_STEP_ROWS = 4  # this many stacked edges ahead = it's the pyramid (a wall has 1-2)
 PYRAMID_MAX_STEP_ROWS = 15 # more than this is a menu / UI, not steps
@@ -250,6 +246,7 @@ DEFAULT_SEC_PER_BLOCK = 0.045  # new PC, nothing measured yet: seconds per block
 DEFAULT_WALKSPEED = 64           # ...this Walk Speed (from real runs)
 HALF_FOV_DEG = 51          # Roblox camera: half the screen width is about this many degrees
 # gym landmark (colourful area by BLOCKS), used when no sign is in render distance
+GYM_LABEL_HSV = ((100, 150, 150), (125, 255, 255))  # blue "GYM" label
 GYM_MIN_S = 45
 GYM_MIN_V = 80
 GYM_SAND_HUE = (6, 26)

@@ -590,6 +590,11 @@ class Navigator:
                 break
         if not ws:
             return
+        if ws != C.DEFAULT_WALKSPEED:
+            # the player sometimes raises it by hand for a moment; the bot
+            # always plays at the normal speed: ignore other readings
+            log.info("Walk Speed reads %s: treating it as %s", ws, C.DEFAULT_WALKSPEED)
+            ws = C.DEFAULT_WALKSPEED
         # older calibrations didn't store it: they were measured at 30
         old = self.cal.get("walkspeed", 30 if "sec_per_block" in self.cal else None)
         if "sec_per_block" in self.cal and old and old != ws:
@@ -597,19 +602,6 @@ class Navigator:
             log.info("walk speed changed %s -> %s: time per block now %.4fs", old, ws, self.spb)
         self.cal["walkspeed"] = ws
         self.speed_factor = 30 / ws  # slide steps scaled to speed (tuned at 30)
-        # walking "steps" are timed key presses tuned at Walk Speed 64: at a
-        # much higher speed each one goes many times as far (that ran us off
-        # into the desert). Shorten them to cover the same distance
-        scale = min(1.0, C.DEFAULT_WALKSPEED / ws)
-        base = getattr(C, "_STEP_BASE", None)
-        if base is None:
-            base = C._STEP_BASE = {k: getattr(C, k) for k in C.SPEED_SCALED}
-        for k, v in base.items():
-            setattr(C, k, max(C.MIN_KEY_SEC, v * scale))
-        if ws > C.WALKSPEED_WARN:
-            log.warning("Walk Speed is %s: the bot is tuned for about %s. At this speed every "
-                        "step overshoots, set it back (lower it in the game) for reliable building",
-                        ws, C.DEFAULT_WALKSPEED)
         self._save_cal()
 
     def go_middle(self, completed, blind=0, front=False, stairs=True):
