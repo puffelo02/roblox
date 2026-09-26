@@ -33,7 +33,7 @@ def update():
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             with z.open(name) as src, open(dest, "wb") as out:
                 out.write(src.read())
-    print("Updated. (Your previous config is saved as config_backup.py)")
+    print("Updated. (Put your own settings in my_settings.py: updates never overwrite it)")
     subprocess.call([sys.executable, "-m", "pip", "install", "-q", "-r",
                      os.path.join(HERE, "requirements.txt")])
 

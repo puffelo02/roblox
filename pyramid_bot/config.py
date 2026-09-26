@@ -219,3 +219,15 @@ TURN_CAL_MIN_SEC = 1.0     # a full camera turn can't be faster than this
 LOOK_BACK_STEP_BLOCKS = 1.5  # camera down, sign went overhead: step back this much at a time...
 LOOK_BACK_MAX_STEPS = 8      # ...at most this many times (the top can be narrow)
 FEW_BLOCKS_LEFT = 50         # this few missing on a layer: "nothing placed" isn't a fall
+
+# ---- your own settings ----
+# Put changes in my_settings.py next to run.py (e.g. PAUSE_KEY = "f9").
+# Updates never overwrite that file; anything in it replaces the value above.
+try:
+    import os as _os
+    _mine = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "my_settings.py")
+    if _os.path.exists(_mine):
+        with open(_mine, encoding="utf-8") as _f:
+            exec(compile(_f.read(), _mine, "exec"), globals())
+except Exception as _e:  # a typo in my_settings.py shouldn't stop the bot
+    print("my_settings.py has an error, ignoring it:", _e)
