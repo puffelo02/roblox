@@ -231,3 +231,5 @@ try:
             exec(compile(_f.read(), _mine, "exec"), globals())
 except Exception as _e:  # a typo in my_settings.py shouldn't stop the bot
     print("my_settings.py has an error, ignoring it:", _e)
+PPB_MIN = 11.0             # realistic px per block in the top view (measured 13-14.5)...
+PPB_MAX = 16.0             # ...readings outside this are thrown away

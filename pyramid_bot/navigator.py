@@ -100,6 +100,15 @@ class Navigator:
         """First run on this PC: measure what the bot needs before playing.
         (Walk speed, time per block and screen scale are measured on the go.)"""
         self.check_walkspeed()
+        bad = self.cal.get("px_per_block")
+        if bad and not (C.PPB_MIN <= bad <= C.PPB_MAX):
+            # a bad scale was saved: the walking speed learned with it is off by
+            # the same factor. Put both right
+            if "sec_per_block" in self.cal:
+                self.cal["sec_per_block"] = round(self.cal["sec_per_block"] * C.PX_PER_BLOCK / bad, 5)
+            self.cal["px_per_block"] = C.PX_PER_BLOCK
+            log.info("fixed a bad saved scale (%.1f px/block)", bad)
+            self._save_cal()
         if "turn90" not in self.cal:
             log.info("first run on this PC: measuring the camera turn speed")
             self.reset_camera()
@@ -162,7 +171,12 @@ class Navigator:
 
     @property
     def ppb(self):
-        return self.cal.get("px_per_block", C.PX_PER_BLOCK)
+        v = self.cal.get("px_per_block")
+        # the top view is always zoomed out the same: anything far off is a bad
+        # measurement (it made every walk too long and walked off small tops)
+        if not v or not (C.PPB_MIN <= v <= C.PPB_MAX):
+            return C.PX_PER_BLOCK
+        return v
 
     def _screen_dirs(self):
         """World direction (dx, dy) of screen right and screen up for our heading."""
@@ -261,8 +275,9 @@ class Navigator:
         if side in s2:
             ppb = abs(s2[side] - s1[side]) / blocks
             if 4 < ppb < 60:
-                self.cal["px_per_block"] = round(ppb, 2)
-                self._save_cal()
+                if C.PPB_MIN <= ppb <= C.PPB_MAX:
+                    self.cal["px_per_block"] = round(ppb, 2)
+                    self._save_cal()
 
     # ---------- camera / heading ----------
     def align(self, max_deg=90):
@@ -676,6 +691,8 @@ class Navigator:
         if abs((st["left"] + st["right"]) / 2 - cx) > 3 * self.ppb:
             return  # not symmetric around us: not both outer edges
         ppb = (st["right"] - st["left"]) / side
+        if not (C.PPB_MIN <= ppb <= C.PPB_MAX):
+            return  # the edges seen weren't this layer's: ignore
         old = self.ppb
         if abs(ppb - old) / old < 0.05:
             return
