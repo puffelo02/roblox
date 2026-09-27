@@ -154,6 +154,7 @@ class Bot:
             # the PYRAMID sign still a tiny speck near the horizon: something else
             log.info("wall check: pyramid sign still far ahead: not the pyramid")
             return False
+        self.c.up("w")
         before = self.counter()
         self.c.hold("e", C.WALL_CHECK_PLACE_SEC)
         after = self.counter()
@@ -176,6 +177,7 @@ class Bot:
         """Walking into something we can't just hop onto from standing against
         it (a raised edge with a gap, a wall): back off, then take a running
         jump. Still stuck soon after: go around it, wider each time."""
+        self.c.up("w")
         now = time.time()
         if now - getattr(self, "_last_stuck", 0) < C.UNSTICK_WINDOW_SEC:
             self._stuck_tries = getattr(self, "_stuck_tries", 0) + 1
@@ -248,6 +250,7 @@ class Bot:
         once so it's straight ahead. That direction is kept even if the sign
         flickers out right after (far signs sit at the edge of render distance).
         True if found."""
+        self.c.up("w")  # stand still while looking around
         t90 = self.nav.turn90  # measured on this PC
         step = t90 / 4
         turned = 0.0
@@ -272,6 +275,12 @@ class Bot:
         return False
 
     def walk_to_sign(self, which, arrived, stop_when_blocked=False, strafe=False):
+        try:
+            return self._walk_to_sign(which, arrived, stop_when_blocked, strafe)
+        finally:
+            self.c.up("w")
+
+    def _walk_to_sign(self, which, arrived, stop_when_blocked=False, strafe=False):
         """Steer toward a sign with the arrow keys until arrived(img, pixels) is true.
         If W stops moving us (view doesn't change), we're blocked by something:
         with stop_when_blocked that counts as arrived (used for the pyramid wall),
@@ -393,17 +402,29 @@ class Bot:
                 # keep the camera still: sidestep to keep the sign in the middle
                 if abs(offset) > C.STEER_TOLERANCE:
                     near_pit = which == "blocks" and last_y is not None
-                    if not near_pit:
-                        self.c.down("w")  # (close to the pit: sidestep only, no striding in)
+                    if near_pit:
+                        self.c.up("w")  # close to the pit: sidestep only, no striding in
+                    else:
+                        self.c.down("w")  # running: steer without stopping
                     self.c.hold("a" if offset < 0 else "d",
                                 min(C.STRAFE_MAX_SEC, abs(offset) * C.STRAFE_GAIN))
-                    self.c.up("w")
             elif offset < -C.STEER_TOLERANCE:
                 self.c.turn_left(C.STEER_TAP_SEC)
             elif offset > C.STEER_TOLERANCE:
                 self.c.turn_right(C.STEER_TAP_SEC)
             before = self.v.scene_small(self.v.grab())
-            self.c.hold("w", self.step_sec(which, near=last_y is not None))
+            close_to_pit = which == "blocks" and (
+                pixels > C.BLOCKS_SLOW_PX * self.v.sx * self.v.sy
+                or self.v.last_sign_y < C.BLOCKS_SLOW_Y * self.v.sy)
+            if last_y is None and not close_to_pit:
+                # far from the sign: keep W held and look while running (no
+                # stop-and-go); it's let go only for turning around, getting
+                # unstuck, or the careful last stretch
+                self.c.down("w")
+                self.c.sleep(C.CRUISE_TICK_SEC)
+            else:
+                self.c.up("w")
+                self.c.hold("w", self.step_sec(which, near=True))
             diff = self.v.scene_diff(before, self.v.scene_small(self.v.grab()))
             if diff < C.BLOCKED_DIFF:
                 blocked += 1
