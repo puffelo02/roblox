@@ -233,6 +233,7 @@ GUIDED_MISS_LIMIT = 4     # sign not seen this many looks in a row: head back
 STAY_MIDDLE_PROGRESS = 0.8  # pyramid this far built: stay in the middle, radius does the rest
 STAY_WIGGLE_BLOCKS = 2.0  # ...only stepping this far around the A
 STAY_PAUSE_SEC = 0.4
+STAY_REACH_SHARE = 0.6    # ...and every other round a square this share of the way to the edges
 LATE_PROGRESS = 0.75      # pyramid this far built: extra careful on top
 LATE_EXTRA_MARGIN = 1.0   # ...keep this many more blocks from the edge
 TOP_SAFE_MARGIN = 1.5     # never go closer than this (blocks) to the edge of the top

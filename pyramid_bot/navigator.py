@@ -893,8 +893,14 @@ class Navigator:
                     return "lost"
                 self.c.down("e")
             key = pattern[k % len(pattern)]
+            lap = k // len(pattern)
             k += 1
-            step = C.STAY_WIGGLE_BLOCKS
+            # every other round a wider square that reaches toward the edges
+            # (still inside the safety margin) so the edge blocks get placed
+            half = (self.base - 2 * completed) / 2
+            wide = max(C.STAY_WIGGLE_BLOCKS, min(half * C.STAY_REACH_SHARE,
+                                                 half - self.safe_margin() - 1))
+            step = wide if lap % 2 else C.STAY_WIGGLE_BLOCKS
             room = self.safe_room(self.sign_pos(img), key)
             if room is not None:
                 step = min(step, room)
