@@ -226,6 +226,7 @@ CLIMB_TEST_STEP_SEC = 0.25  # walk test while climbing: on stairs this always hi
 LEG_SCALE_MIN = 0.6       # learned leg corrections kept in this range
 LEG_SCALE_MAX = 1.15
 APPROACH_WIDTH_SHARE = 0.6  # on top: walk at most this share of the top's width toward the sign
+RECOVER_WALK_MIN = 8      # lost this far from the middle: walk back by memory first
 WALK_BACK_MAX_BLOCKS = 8  # lost: walk back at most this far
 MIDDLE_BAD_READS = 3      # sign readings bigger than the top this often: stop and look again
 MOVE_EDGE_STOP_BLOCKS = 3 # top view: an edge this close on the side we step to = don't step

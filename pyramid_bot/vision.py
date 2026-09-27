@@ -118,7 +118,7 @@ class Vision:
         text = pytesseract.image_to_string(crop, config="--psm 6").lower()
         # needs the word "block": the Pharaoh NPC's label ("Insta-Pickup")
         # also says "pick" and fooled us into stopping too far from the pit
-        return "block" in text
+        return "block" in text or ("pick up" in text and "insta" not in text)
 
     def menu_open(self, img):
         """The Upgrades menu is open if its big red X (with white cross) is there."""

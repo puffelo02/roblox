@@ -1053,6 +1053,16 @@ class Navigator:
     def recover(self, completed):
         """Fell off or lost: back under the A. Stairs / sign search from where we
         are first; if that fails, walk back to the pyramid and climb it again."""
+        mid = self.base / 2 if self.base else 0
+        if self.top_view and self.base and max(abs(self.x - mid), abs(self.y - mid)) > C.RECOVER_WALK_MIN:
+            # far from the middle on a big top (the sign is out of view): walk
+            # back toward it by memory first, instead of giving up and
+            # climbing down and up again
+            log.info("heading back toward the middle by memory (from %.0f, %.0f)", self.x, self.y)
+            now = time.time()
+            dummy = {"last_n": 0, "last_rise": now, "last_cube": now,
+                     "next_counter": float("inf"), "next_cap": float("inf")}
+            self.walk_to(mid, mid, dummy, check_lost=False, watch_edge=False)
         if getattr(self, "just_finished", False):
             # a layer just got done: we're standing still near its edge. The
             # stairs we'd see lead down the outside: only look for the sign
