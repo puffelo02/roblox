@@ -51,7 +51,7 @@ WALK_STEP_SEC = 0.25      # one walking step toward a sign (about 7 blocks at sp
 BLOCKS_NEAR_STEP_SEC = 0.07
 CRUISE_TICK_SEC = 0.12    # running to a sign: look this often without letting go of W
 BLOCKS_SLOW_PX = 900      # BLOCKS sign this big...
-BLOCKS_SLOW_Y = 300       # ...or this high on screen = close to the pit: careful steps from here  # close to BLOCKS: ~2-block steps, so we stop at the pit edge
+BLOCKS_SLOW_Y = 250       # ...or this high on screen = close to the pit: careful steps from here  # close to BLOCKS: ~2-block steps, so we stop at the pit edge
 UNSTICK_WINDOW_SEC = 4    # blocked again within this: next (bigger) way out
 UNSTICK_BACK_SEC = 0.3    # back off this long before a running jump
 UNSTICK_RUNUP_SEC = 0.15  # run this long before jumping
