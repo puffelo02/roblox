@@ -166,7 +166,7 @@ PAUSE_KEY = "n"
 
 # --- Debug ---
 DEBUG_DIR = "debug"
-SAVE_SCREENSHOTS = True
+SAVE_SCREENSHOTS = False   # True: keep debug pictures in the debug folder
 
 # walking to the middle from above
 MIDDLE_MAX_STEPS = 25     # pictures/steps at most
