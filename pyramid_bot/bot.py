@@ -703,8 +703,9 @@ class Bot:
             self.nav.camera_normal()  # back to the normal view for walking to BLOCKS
         log.info("building stopped: %s", status)
         if status == "failed":
-            log.info("couldn't anchor, following the cube this trip")
-            self.build()
+            # no blind cube-following (it wandered at the foot of the stairs):
+            # the main loop walks back to the pyramid and anchors again
+            log.info("couldn't anchor: going back to the pyramid to try again")
 
     def build(self, max_sec=None, climb_first=True):
         """Keep walking (W + E held) and steer with the camera, never stopping.

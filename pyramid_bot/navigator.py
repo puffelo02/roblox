@@ -645,6 +645,7 @@ class Navigator:
                              abs(d), half)
                     if bad_reads >= C.MIDDLE_BAD_READS:
                         self._bad_reads = 0
+                        self.centred_last = False
                         return False
                     self.c.sleep(0.2)
                     continue
@@ -675,6 +676,7 @@ class Navigator:
                 self.step_jump(key, C.JUMP_HOLD_SEC + 4 * self.spb)
                 continue
             break  # no sign, no stairs: stop here and search for the sign by sight
+        self.centred_last = centred
         if centred or not getattr(self, "pos_known", False):
             self.x = self.y = self.base / 2
         if centred:
@@ -1230,11 +1232,13 @@ class Navigator:
         log.info("anchoring: climb, look down, walk to the middle")
         self.check_walkspeed()
         self.completed = completed
+        skipped_climb = False
         if getattr(self.b, "on_top_already", False):
             # we looked down on the way and the sign was right below us: we're
             # on top already. Climbing/walking on from here ran us off the edge
             log.info("already on top (sign was below us): no climbing")
             self.b.on_top_already = False
+            skipped_climb = True
         else:
             self.align()
             self.climb_to_top()
@@ -1248,7 +1252,22 @@ class Navigator:
         if not self.go_middle(completed, front=True):
             # lost it again while lining up: look for it again (we're on top)
             self.approach_sign(completed)
-            if not self.go_middle(completed):
+            if not self.go_middle(completed) and skipped_climb:
+                # the "sign below us" was seen from the foot of the pyramid:
+                # we're not on top after all. Climb now and try again
+                log.info("not on top after all: climbing")
+                self.camera_normal()
+                self.align()
+                self.climb_to_top()
+                self.camera_top()
+                self.top_align()
+                if self.v.sign_top(self.v.grab()) is None:
+                    self.approach_sign(completed)
+                skipped_climb = False
+                if not self.go_middle(completed):
+                    log.warning("couldn't get under the A: not spiralling from here")
+                    return False
+            elif not self.centred_last:
                 # never start a spiral from an unknown spot: that's how we
                 # walked off. Get back on the pyramid properly instead
                 log.warning("couldn't get under the A: not spiralling from here")
