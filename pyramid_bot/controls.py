@@ -70,11 +70,17 @@ class Controls:
         self.held.clear()
 
     # camera
+    # net camera turning (seconds, right = +) since the camera was last squared
+    # to the pyramid: lets us turn back square when no edge is in view
+    turned = 0.0
+
     def turn_left(self, sec=C.TURN_90_SEC):
         self.hold("left", sec)
+        self.turned -= sec
 
     def turn_right(self, sec=C.TURN_90_SEC):
         self.hold("right", sec)
+        self.turned += sec
 
     def jump_forward(self, landing=0.4):
         self.down("w")

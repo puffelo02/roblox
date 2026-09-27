@@ -264,6 +264,7 @@ GYM_SAND_HUE = (6, 26)
 GYM_BAND_Y = (200, 620)
 GYM_MIN_SCORE = 300
 GYM_MIN_COLOURS = 4
+WALKSPEED_MIN_TRUST = 16  # below this it's a misread (e.g. "4"): ignored
 WALKSPEED_MAX_TRUST = 100 # Walk Speed readings above this are a temporary boost: ignored
 LANDMARK_WALK_STEPS = 60   # walk steps toward the gym before looking around again
 LANDMARK_RECENTER_EVERY = 8

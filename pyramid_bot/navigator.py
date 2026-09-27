@@ -590,7 +590,7 @@ class Navigator:
                 break
         if not ws:
             return
-        if ws > C.WALKSPEED_MAX_TRUST:
+        if ws > C.WALKSPEED_MAX_TRUST or ws < C.WALKSPEED_MIN_TRUST:
             # the player sometimes raises it by hand for a moment to look
             # around: ignore such readings, the bot plays at normal speed
             log.info("Walk Speed reads %s: treating it as %s", ws, C.DEFAULT_WALKSPEED)
@@ -1014,10 +1014,22 @@ class Navigator:
                     break
                 self.c.sleep(0.1)
             if a is None:
-                log.info("top view: no edge line to square up on")
+                # no edge in view (the middle of a big top): undo the turning
+                # done since the camera was last square, to the nearest 90 deg
+                t90 = self.turn90
+                net = self.c.turned % t90
+                back = -net if net <= t90 / 2 else t90 - net
+                if abs(back) > t90 * C.TOP_ALIGN_OK_DEG / 90:
+                    log.info("top view: no edge in view, turning back square from memory (%.2fs)", back)
+                    (self.c.turn_right if back > 0 else self.c.turn_left)(abs(back))
+                    self.c.sleep(0.15)
+                else:
+                    log.info("top view: no edge line to square up on (still square from before)")
+                self.c.turned = 0.0
                 return
             if abs(a) < C.TOP_ALIGN_OK_DEG:
                 log.info("top view: camera square (%.1f deg)", a)
+                self.c.turned = 0.0  # this is "square" now
                 return
             if prev is not None and abs(a) > abs(prev) + 0.5:
                 sign = -sign  # made it worse: other way round
