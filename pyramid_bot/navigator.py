@@ -525,12 +525,10 @@ class Navigator:
                 log.info("on top: no stairs or obstacle ahead (%d jumps)", jumps)
                 return True
         log.warning("still stairs ahead after %d jumps", C.CLIMB_MAX_JUMPS)
-        if self.v.pickup_prompt_visible(self.v.grab()):
-            # "stairs" that never end with the pick-up prompt showing: we're in
-            # the BLOCKS pit, likely stuck under the blocks. Only a reset helps
-            log.warning("stuck in the BLOCKS pit: resetting the character (Esc, R, Enter)")
-            self.c.reset_character()
-            self.b.just_reset = True
+        if self.v.pickup_prompt_visible(self.v.grab()) and self.b.trapped():
+            # "stairs" that never end, pick-up prompt showing and we can't
+            # move at all: under the blocks in the pit. Only a reset helps
+            self.b.pit_reset()
         return False
 
     def expected_layers(self):
