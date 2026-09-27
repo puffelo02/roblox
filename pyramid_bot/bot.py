@@ -148,6 +148,9 @@ class Bot:
             # that's the BLOCKS pit's wall (the pick-up prompt shows): never
             # climb into the pit, it can trap us under the blocks
             log.info("wall check: pick-up prompt showing, that's the BLOCKS pit: not the pyramid")
+            self._pit_hits = getattr(self, "_pit_hits", 0) + 1
+            if self._pit_hits >= C.PIT_HITS_RESET:
+                self.pit_reset()
             return False
         if self.no_layer_yet():
             # a brand-new pyramid is a flat baseplate: there's no wall to hit
@@ -174,6 +177,14 @@ class Bot:
         self.v.save(img, "not_pyramid")
         return False
 
+    def pit_reset(self):
+        """Stuck at / in the BLOCKS pit (under the blocks, can't get out):
+        reset the character (Esc, R, Enter) and start over from spawn."""
+        log.warning("stuck in the BLOCKS pit: resetting the character (Esc, R, Enter)")
+        self.c.reset_character()
+        self._pit_hits = 0
+        self._stuck_tries = 0
+
     def step_sec(self, which, near=False):
         """One walking step. Close to BLOCKS: short steps (about 2 blocks) and
         a look after each, so we stop at the pit's edge the moment the pick-up
@@ -197,9 +208,7 @@ class Bot:
         if n >= 3 and self.v.pickup_prompt_visible(self.v.grab()):
             # blocked again and again with the pick-up prompt showing: we're in
             # the BLOCKS pit (under the blocks). Only a reset gets us out
-            log.warning("stuck in the BLOCKS pit: resetting the character (Esc, R, Enter)")
-            self.c.reset_character()
-            self._stuck_tries = 0
+            self.pit_reset()
             return
         if n <= 2:
             log.info("blocked: backing off and taking a running jump (%d)", n)
@@ -308,11 +317,30 @@ class Bot:
         missing = 0
         detours = 0
         last_off = None
+        pit_avoids = 0
         last_top_check = time.time()
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
             img = self.v.grab()
             if self.close_menu(img):
+                continue
+            if which == "pyramid" and time.time() - start > C.PIT_AVOID_AFTER_SEC \
+                    and self.v.pickup_prompt_visible(img):
+                # the pit's edge is right here and the pyramid lies beyond it:
+                # don't walk in (the blocks can trap us). Back off, sidestep
+                pit_avoids += 1
+                if pit_avoids > C.PIT_AVOID_MAX:
+                    # the prompt never goes away: we're in the pit, not beside it
+                    self.pit_reset()
+                    pit_avoids = 0
+                    continue
+                log.info("BLOCKS pit in the way: backing off and going around it")
+                self.c.up("w")
+                self.c.hold("s", C.PIT_AVOID_BACK_SEC)
+                self.c.hold("d" if (pit_sides := getattr(self, "_pit_side", 0)) % 2 == 0 else "a",
+                            C.PIT_AVOID_SIDE_SEC)
+                self._pit_side = pit_sides + (1 if time.time() - getattr(self, "_pit_t", 0) > 20 else 0)
+                self._pit_t = time.time()
                 continue
             offset, pixels = self.v.find_sign(img, which)
             by_shape = False
@@ -465,6 +493,10 @@ class Bot:
             else:
                 blocked = 0
         self.v.save(self.v.grab(), f"timeout_{which}")
+        if which == "pyramid" and self.v.pickup_prompt_visible(self.v.grab()):
+            # "walked at the sign" but we're at the BLOCKS pit: stuck in it
+            self.pit_reset()
+            return False
         if which == "pyramid" and getattr(self, "saw_pyramid_sign", False):
             # we've been walking at the sign all along: we're at (or on) the
             # pyramid, just not "arrived" by the usual signs. Climb from here

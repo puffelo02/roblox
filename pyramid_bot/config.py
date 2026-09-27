@@ -52,6 +52,11 @@ BLOCKS_NEAR_STEP_SEC = 0.07  # close to BLOCKS: ~2-block steps, so we stop at th
 CRUISE_TICK_SEC = 0.12    # running to a sign: look this often without letting go of W
 BLOCKS_SLOW_PX = 900      # BLOCKS sign this big...
 BLOCKS_SLOW_Y = 250       # ...or this high on screen = close to the pit: careful steps from here
+PIT_AVOID_AFTER_SEC = 2.0 # walking to the pyramid: pick-up prompt after this long = pit ahead
+PIT_AVOID_BACK_SEC = 0.3
+PIT_AVOID_SIDE_SEC = 0.8
+PIT_AVOID_MAX = 5         # still at the pit after this many tries: we're in it, reset
+PIT_HITS_RESET = 2        # walking to the pyramid, blocked by the pit this often: reset
 RESET_KEY_GAP_SEC = 0.5   # pause between Esc, R and Enter when resetting
 RESPAWN_SEC = 6           # wait for the respawn after a reset
 UNSTICK_WINDOW_SEC = 4    # blocked again within this: next (bigger) way out
