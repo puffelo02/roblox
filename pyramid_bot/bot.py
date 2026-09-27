@@ -144,6 +144,15 @@ class Bot:
         base (counter goes up), and its steps show as several stacked edges."""
         img = self.v.grab()
         # the pyramid's shape: a stack of long, wide step lines in front of us
+        if self.v.pickup_prompt_visible(img):
+            # that's the BLOCKS pit's wall (the pick-up prompt shows): never
+            # climb into the pit, it can trap us under the blocks
+            log.info("wall check: pick-up prompt showing, that's the BLOCKS pit: not the pyramid")
+            return False
+        if self.no_layer_yet():
+            # a brand-new pyramid is a flat baseplate: there's no wall to hit
+            log.info("wall check: the pyramid has no layers yet, a wall can't be it")
+            return False
         rows = self.v.step_rows(img, C.WALL_STEP_MIN_LEN)
         far = self.v.pyramid_sign_far(img)
         if C.WALL_MIN_STEP_ROWS <= rows <= C.WALL_MAX_STEP_ROWS:
@@ -185,6 +194,13 @@ class Bot:
             self._stuck_tries = 1
         self._last_stuck = now
         n = self._stuck_tries
+        if n >= 3 and self.v.pickup_prompt_visible(self.v.grab()):
+            # blocked again and again with the pick-up prompt showing: we're in
+            # the BLOCKS pit (under the blocks). Only a reset gets us out
+            log.warning("stuck in the BLOCKS pit: resetting the character (Esc, R, Enter)")
+            self.c.reset_character()
+            self._stuck_tries = 0
+            return
         if n <= 2:
             log.info("blocked: backing off and taking a running jump (%d)", n)
             self.c.hold("s", C.UNSTICK_BACK_SEC * n)

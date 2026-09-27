@@ -74,6 +74,16 @@ class Controls:
     # to the pyramid: lets us turn back square when no edge is in view
     turned = 0.0
 
+    def reset_character(self):
+        """Roblox reset (Esc, R, Enter): the way out when stuck under the
+        blocks in the pit. We respawn at the spawn point."""
+        self.release_all()
+        for key in ("esc", "r", "enter"):
+            self.hold(key, 0.1)
+            self.sleep(C.RESET_KEY_GAP_SEC)
+        self.sleep(C.RESPAWN_SEC)
+        self.turned = 0.0
+
     def turn_left(self, sec=C.TURN_90_SEC):
         self.hold("left", sec)
         self.turned -= sec
