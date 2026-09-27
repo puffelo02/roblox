@@ -52,6 +52,11 @@ BLOCKS_NEAR_STEP_SEC = 0.07  # close to BLOCKS: ~2-block steps, so we stop at th
 CRUISE_TICK_SEC = 0.12    # running to a sign: look this often without letting go of W
 BLOCKS_SLOW_PX = 900      # BLOCKS sign this big...
 BLOCKS_SLOW_Y = 250       # ...or this high on screen = close to the pit: careful steps from here
+PIT_BACKOFF_SEC = 0.25    # filled up: step back from the pit edge first
+PIT_CROSS_DEG = 70        # pyramid within this angle of the pit direction = beyond the pit
+PIT_DETOUR_BLOCKS = 25    # sidestep this far to get around the pit
+PIT_DETOUR_TRIES = 2
+PIT_STUCK_SEC = 45        # trying to leave, still at the pit this long: stuck, reset
 PIT_HITS_RESET = 3        # blocked by the pit wall this often: test whether we're trapped
 TRAPPED_TEST_SEC = 0.3
 PIT_WALL_FOLLOW_SEC = 1.0 # in the pit: sidestep this long along the wall each try    # trapped test: try each direction this long

@@ -192,6 +192,23 @@ class Bot:
         log.info("can't move in any direction: trapped under the blocks")
         return True
 
+    def detour_around_pit(self):
+        """Just filled up at the pit's edge, now facing the pyramid. If the
+        pyramid lies beyond the pit (we turned less than ~70 degrees away
+        from it), walk around the pit first instead of straight through."""
+        t90 = self.nav.turn90
+        for _ in range(C.PIT_DETOUR_TRIES):
+            deg = (self.c.turned / t90 * 90 + 180) % 360 - 180  # from the pit direction
+            if abs(deg) > C.PIT_CROSS_DEG:
+                return  # the way to the pyramid doesn't cross the pit
+            log.info("the pyramid is beyond the BLOCKS pit (%.0f deg): walking around it", deg)
+            # sidestep away from the pit's middle, on the side we'd pass it
+            side = "d" if deg >= 0 else "a"
+            self.c.hold(side, C.PIT_DETOUR_BLOCKS * self.nav.spb)
+            self.c.hold("w", C.PIT_DETOUR_BLOCKS * 0.5 * self.nav.spb)
+            # the pit is now behind/beside us: aim at the sign again
+            self.face_sign("pyramid")
+
     def pit_reset(self):
         """Stuck at / in the BLOCKS pit (under the blocks, can't get out):
         reset the character (Esc, R, Enter) and start over from spawn."""
@@ -199,6 +216,7 @@ class Bot:
         self.c.reset_character()
         self._pit_hits = 0
         self._stuck_tries = 0
+        self._pit_since = None
         # a reset empties the backpack: stop what we're doing, the main loop
         # sees capacity 0 and goes straight to BLOCKS to refill
         self.was_reset = True
@@ -345,12 +363,25 @@ class Bot:
         missing = 0
         detours = 0
         last_off = None
+        last_pit_check = 0.0
+        self._pit_since = getattr(self, "_pit_since", None)
         last_top_check = time.time()
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
             if which == "pyramid" and getattr(self, "was_reset", False):
                 return False  # reset: capacity is 0 now, refill first
             img = self.v.grab()
+            if which == "pyramid" and time.time() - last_pit_check > 1.0:
+                last_pit_check = time.time()
+                if self.v.pickup_prompt_visible(img):
+                    self._pit_since = self._pit_since or time.time()
+                    if time.time() - self._pit_since > C.PIT_STUCK_SEC:
+                        # still at the pit after all that trying: we're stuck in it
+                        log.warning("still at the BLOCKS pit after %ds trying to leave", C.PIT_STUCK_SEC)
+                        self.pit_reset()
+                        return False
+                elif self._pit_since and time.time() - self._pit_since > 5:
+                    self._pit_since = None
             if self.close_menu(img):
                 continue
             offset, pixels = self.v.find_sign(img, which)
@@ -533,6 +564,7 @@ class Bot:
     def go_to_blocks(self):
         log.info("-> BLOCKS (refilling)")
         self.was_reset = False
+        self._pit_since = None
         for attempt in range(C.BLOCKS_TRIES):
             self.nav.reset_camera()
             if not self.v.pickup_prompt_visible(self.v.grab()):
@@ -650,6 +682,10 @@ class Bot:
                     last_log = time.time()
                 if cap[0] >= cap[1] * C.CAPACITY_FULL_RATIO:
                     log.info("capacity full %s/%s", *cap)
+                    # remember which way the pit is (we're facing it): the walk
+                    # to the pyramid must not cut across it
+                    self.c.turned = 0.0
+                    self.facing_pit = True
                     return True
                 if near_full and cap[0] <= best and time.time() - last_rise > C.FULL_FALLBACK_SEC:
                     log.info("capacity stopped at %s/%s, treating as full", *cap)
@@ -699,9 +735,15 @@ class Bot:
             self.nav.reset_camera()
             # find the word first, standing still; too far away: head for the
             # pyramid's outline (or the gym) until the sign shows up
+            if getattr(self, "facing_pit", False):
+                # step back from the pit's edge before anything else
+                self.c.hold("s", C.PIT_BACKOFF_SEC)
             if not self.find_sign_any_pitch("pyramid"):
                 self.nav.reset_camera()
                 self.head_to_landmark("pyramid")
+            if getattr(self, "facing_pit", False):
+                self.facing_pit = False
+                self.detour_around_pit()
             ok = self.walk_to_sign(
                 "pyramid",
                 lambda img, px: px > C.PYRAMID_SIGN_ARRIVED_PIXELS * self.v.sx * self.v.sy,
