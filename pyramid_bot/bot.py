@@ -184,6 +184,9 @@ class Bot:
         self.c.reset_character()
         self._pit_hits = 0
         self._stuck_tries = 0
+        # a reset empties the backpack: stop what we're doing, the main loop
+        # sees capacity 0 and goes straight to BLOCKS to refill
+        self.was_reset = True
 
     def step_sec(self, which, near=False):
         """One walking step. Close to BLOCKS: short steps (about 2 blocks) and
@@ -321,6 +324,8 @@ class Bot:
         last_top_check = time.time()
         while time.time() - start < C.TRAVEL_TIMEOUT_SEC:
             self.c.check()
+            if which == "pyramid" and getattr(self, "was_reset", False):
+                return False  # reset: capacity is 0 now, refill first
             img = self.v.grab()
             if self.close_menu(img):
                 continue
@@ -519,6 +524,7 @@ class Bot:
 
     def go_to_blocks(self):
         log.info("-> BLOCKS (refilling)")
+        self.was_reset = False
         for attempt in range(C.BLOCKS_TRIES):
             self.nav.reset_camera()
             if not self.v.pickup_prompt_visible(self.v.grab()):
@@ -677,7 +683,11 @@ class Bot:
         self.saw_pyramid_sign = False
         self.on_top_already = False
         ok = False
+        self.was_reset = False
         for attempt in range(C.BLOCKS_TRIES):
+            if self.was_reset:
+                log.info("character was reset: capacity is 0, refilling at BLOCKS first")
+                break
             self.nav.reset_camera()
             # find the word first, standing still; too far away: head for the
             # pyramid's outline (or the gym) until the sign shows up
@@ -903,7 +913,7 @@ class Bot:
                     if cap is not None:
                         break
                     self.c.sleep(0.2)
-                if cap is None or cap[0] < C.EMPTY_BELOW:
+                if getattr(self, "was_reset", False) or cap is None or cap[0] < C.EMPTY_BELOW:
                     # out of blocks (or can't tell): refill first
                     if not self.go_to_blocks():
                         continue
