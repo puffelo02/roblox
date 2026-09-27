@@ -542,6 +542,7 @@ class Bot:
         last_rise = time.time()
         last_log = 0
         shuffle = 0
+        start_cap = None
         self.c.down("e")
         try:
             while time.time() - start < C.PICKUP_TIMEOUT_SEC:
@@ -571,10 +572,21 @@ class Bot:
                     log.info("capacity stopped at %s/%s, treating as full", *cap)
                     self.v.save(img, "full_stalled")
                     return True
+                if start_cap is None:
+                    start_cap = cap[0]
                 if cap[0] > best:
                     best = cap[0]
                     last_rise = time.time()
-                elif time.time() - last_rise > C.PICKUP_STALL_SEC:
+                elif time.time() - last_rise > (C.PICKUP_CREEP_WAIT_SEC if best <= start_cap
+                                                else C.PICKUP_STALL_SEC):
+                    if best <= start_cap and shuffle < C.PICKUP_CREEP_MAX:
+                        # nothing picked up at all: we're just out of range.
+                        # Creep a tiny step toward the pit (never a stride)
+                        log.info("capacity not moving at %s/%s: out of range, creeping closer", *cap)
+                        shuffle += 1
+                        self.c.hold("w", C.PICKUP_CREEP_SEC)
+                        last_rise = time.time()
+                        continue
                     # never walk around here: the pit can trap us under the
                     # blocks. Just let go of E and press it again, standing still
                     log.info("capacity stuck at %s/%s, pressing E again (not moving)", *cap)
