@@ -1309,6 +1309,7 @@ class Navigator:
                 if max_blocks is not None and moved / self.spb >= max_blocks:
                     # by our own count we'd be at the edge of the top: stop
                     log.info("safety: walked as far as the top allows (%s)", key.upper())
+                    self.safety_stop = moved / self.spb
                     return None
                 remaining = duration - moved
                 self.c.sleep(min(C.BUILD_TICK_SEC, remaining))
@@ -1447,6 +1448,7 @@ class Navigator:
             near_edge = min(target - lo, hi - target) < self.spiral_inset(hi - lo) + C.EDGE_WATCH_BLOCKS
             start = self.x if axis == "x" else self.y
             room = self.safe_room((self.x, self.y), key) if self.top_view else None
+            self.safety_stop = None
             status = self.walk(dist * self.leg_scale(key), state, check_lost=check_lost, key=key,
                                max_blocks=room,
                                edge_stop=(check_lost if watch_edge is None else watch_edge)
@@ -1454,10 +1456,15 @@ class Navigator:
                                goal=(axis, target))
             if status:
                 return status
+            got = target
+            if self.safety_stop is not None:
+                # stopped short: we're where we got to, not at the target
+                # (pretending we reached it made every later leg stop early)
+                got = start + self.safety_stop * (1 if d > 0 else -1)
             if axis == "x":
-                self.x = target
+                self.x = got
             else:
-                self.y = target
+                self.y = got
             if self.top_view and self.locate_by_sign() and dist >= 8 and not self.goal_hit:
                 # the sign shows where we really got to: learn how far legs in
                 # this direction really go, so long walks stop overshooting
