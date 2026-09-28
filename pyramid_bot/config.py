@@ -52,7 +52,11 @@ BLOCKS_NEAR_STEP_SEC = 0.07  # close to BLOCKS: ~2-block steps, so we stop at th
 CRUISE_TICK_SEC = 0.12    # running to a sign: look this often without letting go of W
 BLOCKS_SLOW_PX = 900      # BLOCKS sign this big...
 BLOCKS_SLOW_Y = 250       # ...or this high on screen = close to the pit: careful steps from here
-PIT_BACKOFF_SEC = 0.25    # filled up: step back from the pit edge first
+PIT_AHEAD_BOX = (760, 380, 1160, 530)  # normal view: the ground just ahead of us
+PIT_EDGE_DENSITY = 0.15   # rubble: this share of strong edges...
+PIT_MAX_COHERENCE = 0.33  # ...pointing in all directions (stairs ~0.95)
+PIT_BACKOFF_SEC = 0.25
+PIT_SIDESTEP_SEC = 0.6    # pit right ahead on the way to the pyramid: sidestep this long    # filled up: step back from the pit edge first
 PIT_CROSS_DEG = 70        # pyramid within this angle of the pit direction = beyond the pit
 PIT_DETOUR_BLOCKS = 25    # sidestep this far to get around the pit
 PIT_DETOUR_TRIES = 2
@@ -264,6 +268,8 @@ PYRAMID_AHEAD_ROWS = 6    # stair lines straight ahead = the pyramid is right th
 WALK_INTO_MAX_STEPS = 20
 BASEPLATE_MAX_SAT = 100   # grey stone: low colour saturation
 BASEPLATE_SHARE = 0.75    # this much of the ground around us is grey stone = on the baseplate
+EDGE_INSET_EXTRA_MAX = 8.0  # ...but never more than this extra (void 150 wide: 13 in, not 20)
+EDGE_LAP_EXTRA_MAX = 6.0
 EDGE_INSET_PER_BLOCK = 0.10  # outer lap: + this x layer width further from the edge (126 wide: +10)
 EDGE_LAP_PER_BLOCK = 0.12   # edge-cleanup laps likewise (126 wide: +8)
 JUMP_EVERY_MOVES = 3      # hop every this many moves while searching/centring (gets unstuck)

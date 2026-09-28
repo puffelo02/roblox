@@ -498,6 +498,18 @@ class Bot:
                 self.c.turn_left(C.STEER_TAP_SEC)
             elif offset > C.STEER_TOLERANCE:
                 self.c.turn_right(C.STEER_TAP_SEC)
+            if self.v.pit_ahead(img):
+                self.c.up("w")
+                if which == "blocks":
+                    # the rubble starts right in front of us: this is the edge.
+                    # Stop here (never one step further), pick up from here
+                    log.info("pit edge right ahead: stopping at the edge")
+                    return True
+                # heading for the pyramid with the pit in the way: go around
+                log.info("BLOCKS pit right ahead: sidestepping around it")
+                self.c.hold("s", C.PIT_BACKOFF_SEC)
+                self.c.hold("d", C.PIT_SIDESTEP_SEC)
+                continue
             before = self.v.scene_small(self.v.grab())
             close_to_pit = which == "blocks" and (
                 pixels > C.BLOCKS_SLOW_PX * self.v.sx * self.v.sy
@@ -703,7 +715,9 @@ class Bot:
                         # Creep a tiny step toward the pit (never a stride)
                         log.info("capacity not moving at %s/%s: out of range, creeping closer", *cap)
                         shuffle += 1
+                        self.c.up("e")
                         self.c.hold("w", C.PICKUP_CREEP_SEC)
+                        self.c.down("e")
                         last_rise = time.time()
                         continue
                     # never walk around here: the pit can trap us under the

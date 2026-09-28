@@ -113,6 +113,26 @@ class Vision:
         pair = self._read_pair(img, C.REGION_WALKSPEED)
         return pair[0] if pair and 0 < pair[0] <= pair[1] else None
 
+    def pit_ahead(self, img):
+        """Normal view: the BLOCKS pit's rubble right in front of us, a jumble
+        of block edges pointing every which way (stairs and sand don't look
+        like that: stairs are parallel lines, sand has almost no edges)."""
+        import math
+        x1, y1, x2, y2 = C.PIT_AHEAD_BOX
+        crop = img[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)]
+        g = cv2.GaussianBlur(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY).astype(np.float32), (3, 3), 0)
+        gx = cv2.Sobel(g, cv2.CV_32F, 1, 0)
+        gy = cv2.Sobel(g, cv2.CV_32F, 0, 1)
+        m = np.hypot(gx, gy)
+        strong = m > 60
+        density = float(strong.mean())
+        if density < C.PIT_EDGE_DENSITY:
+            return False
+        w = m * strong
+        th = np.arctan2(gy, gx)
+        coh = math.hypot(float((w * np.cos(2 * th)).sum()), float((w * np.sin(2 * th)).sum())) / max(float(w.sum()), 1e-6)
+        return coh < C.PIT_MAX_COHERENCE
+
     def pickup_prompt_visible(self, img):
         crop = self.crop(img, C.REGION_PROMPT)
         text = pytesseract.image_to_string(crop, config="--psm 6").lower()

@@ -157,10 +157,12 @@ class Navigator:
     def spiral_inset(self, side):
         """How far in from the edge the outer spiral lap stays: more on big
         layers (long walks out there drift further)."""
-        return C.EDGE_INSET + C.EDGE_INSET_PER_BLOCK * side
+        # capped: on the 150-wide void pyramid it was 20 blocks in and the
+        # corners never got placed (the safety margin still guards the edge)
+        return C.EDGE_INSET + min(C.EDGE_INSET_PER_BLOCK * side, C.EDGE_INSET_EXTRA_MAX)
 
     def lap_inset(self, side, i):
-        return C.EDGE_LAP_INSETS[i] + C.EDGE_LAP_PER_BLOCK * side
+        return C.EDGE_LAP_INSETS[i] + min(C.EDGE_LAP_PER_BLOCK * side, C.EDGE_LAP_EXTRA_MAX)
 
     def reset_camera(self):
         """Known normal view whatever state the camera was left in: tilt all the
