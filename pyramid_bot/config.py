@@ -52,7 +52,7 @@ BLOCKS_NEAR_STEP_SEC = 0.07  # close to BLOCKS: ~2-block steps, so we stop at th
 CRUISE_TICK_SEC = 0.12    # running to a sign: look this often without letting go of W
 BLOCKS_SLOW_PX = 900      # BLOCKS sign this big...
 BLOCKS_SLOW_Y = 250       # ...or this high on screen = close to the pit: careful steps from here
-PIT_AHEAD_BOX = (760, 380, 1160, 530)  # normal view: the ground just ahead of us
+PIT_AHEAD_BOX = (860, 470, 1060, 540)  # normal view: the ground right in front of our feet (not 10 blocks off)
 PIT_EDGE_DENSITY = 0.15   # rubble: this share of strong edges...
 PIT_MAX_COHERENCE = 0.33  # ...pointing in all directions (stairs ~0.95)
 PIT_BACKOFF_SEC = 0.25
