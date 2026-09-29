@@ -531,7 +531,8 @@ class Bot:
                 continue
             before = self.v.scene_small(self.v.grab())
             close_to_pit = which == "blocks" and (
-                pixels > C.BLOCKS_SLOW_PX * self.v.sx * self.v.sy
+                self.v.pit_ahead(img, C.PIT_SEEN_BOX)  # rubble in view ~10 blocks ahead
+                or pixels > C.BLOCKS_SLOW_PX * self.v.sx * self.v.sy
                 or self.v.last_sign_y < C.BLOCKS_SLOW_Y * self.v.sy)
             if last_y is None and not close_to_pit:
                 # far from the sign: keep W held and look while running (no
@@ -540,7 +541,12 @@ class Bot:
                 self.c.down("w")
                 self.c.sleep(C.CRUISE_TICK_SEC)
             else:
+                # close to the pit: tiny steps, and look for the prompt / the
+                # rubble at our feet after EVERY one of them
                 self.c.up("w")
+                if which == "blocks" and self.v.pickup_prompt_visible(self.v.grab()):
+                    log.info("at the pit's edge: not one step further")
+                    return True
                 self.c.hold("w", self.step_sec(which, near=True))
             diff = self.v.scene_diff(before, self.v.scene_small(self.v.grab()))
             if diff < C.BLOCKED_DIFF:
@@ -738,7 +744,8 @@ class Bot:
                     last_rise = time.time()
                 elif time.time() - last_rise > (C.PICKUP_CREEP_WAIT_SEC if best <= start_cap
                                                 else C.PICKUP_STALL_SEC):
-                    if best <= start_cap and shuffle < C.PICKUP_CREEP_MAX:
+                    if best <= start_cap and shuffle < C.PICKUP_CREEP_MAX \
+                            and not self.v.pit_ahead(img):
                         # nothing picked up at all: we're just out of range.
                         # Creep a tiny step toward the pit (never a stride)
                         log.info("capacity not moving at %s/%s: out of range, creeping closer", *cap)

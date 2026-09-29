@@ -128,12 +128,12 @@ class Vision:
         x = float((cols * np.arange(len(cols))).sum() / cols.sum()) + x1 * self.sx
         return (x - img.shape[1] / 2) / (img.shape[1] / 2)
 
-    def pit_ahead(self, img):
+    def pit_ahead(self, img, box=None):
         """Normal view: the BLOCKS pit's rubble right in front of us, a jumble
         of block edges pointing every which way (stairs and sand don't look
         like that: stairs are parallel lines, sand has almost no edges)."""
         import math
-        x1, y1, x2, y2 = C.PIT_AHEAD_BOX
+        x1, y1, x2, y2 = box or C.PIT_AHEAD_BOX
         crop = img[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)]
         g = cv2.GaussianBlur(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY).astype(np.float32), (3, 3), 0)
         gx = cv2.Sobel(g, cv2.CV_32F, 1, 0)
