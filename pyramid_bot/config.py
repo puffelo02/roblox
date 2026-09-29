@@ -58,6 +58,10 @@ PATH_MIN_SHARE = 0.06     # this share of the band must be path
 PATH_MAX_DEVIATION = 0.6  # follow the path only if it heads roughly toward the sign
 PATH_WEIGHT = 0.7
 PIT_SEEN_BOX = (760, 380, 1160, 530)  # rubble here = the pit is ~10 blocks ahead: slow down
+PIT_RIGHT_BOX = (1250, 560, 1700, 900)  # rubble here = the pit is off to our right
+PIT_LEFT_BOX = (380, 560, 830, 900)
+PIT_SIDE_DENSITY = 0.095
+PIT_SIDE_COHERENCE = 0.3
 PIT_AHEAD_BOX = (860, 470, 1060, 540)  # normal view: the ground right in front of our feet (not 10 blocks off)
 PIT_EDGE_DENSITY = 0.15   # rubble: this share of strong edges...
 PIT_MAX_COHERENCE = 0.33  # ...pointing in all directions (stairs ~0.95)

@@ -128,7 +128,7 @@ class Vision:
         x = float((cols * np.arange(len(cols))).sum() / cols.sum()) + x1 * self.sx
         return (x - img.shape[1] / 2) / (img.shape[1] / 2)
 
-    def pit_ahead(self, img, box=None):
+    def pit_ahead(self, img, box=None, density_min=None, coh_max=None):
         """Normal view: the BLOCKS pit's rubble right in front of us, a jumble
         of block edges pointing every which way (stairs and sand don't look
         like that: stairs are parallel lines, sand has almost no edges)."""
@@ -141,12 +141,12 @@ class Vision:
         m = np.hypot(gx, gy)
         strong = m > 60
         density = float(strong.mean())
-        if density < C.PIT_EDGE_DENSITY:
+        if density < (density_min or C.PIT_EDGE_DENSITY):
             return False
         w = m * strong
         th = np.arctan2(gy, gx)
         coh = math.hypot(float((w * np.cos(2 * th)).sum()), float((w * np.sin(2 * th)).sum())) / max(float(w.sum()), 1e-6)
-        return coh < C.PIT_MAX_COHERENCE
+        return coh < (coh_max or C.PIT_MAX_COHERENCE)
 
     def pickup_prompt_visible(self, img):
         crop = self.crop(img, C.REGION_PROMPT)

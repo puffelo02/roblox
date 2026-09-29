@@ -209,6 +209,15 @@ class Bot:
             # the pit is now behind/beside us: aim at the sign again
             self.face_sign("pyramid")
 
+    def pit_side(self, img):
+        """The pit's rubble on the left or right part of the screen (not in
+        front): "left"/"right" or None."""
+        for name, box in (("right", C.PIT_RIGHT_BOX), ("left", C.PIT_LEFT_BOX)):
+            # close up the pit's blocks are big: fewer edges, still every which way
+            if self.v.pit_ahead(img, box, C.PIT_SIDE_DENSITY, C.PIT_SIDE_COHERENCE):
+                return name
+        return None
+
     def pit_reset(self):
         """Stuck at / in the BLOCKS pit (under the blocks, can't get out):
         reset the character (Esc, R, Enter) and start over from spawn."""
@@ -424,6 +433,10 @@ class Bot:
                     return True
             if which == "pyramid" and offset is not None:
                 self.saw_pyramid_sign = True
+            if which == "blocks" and offset is not None and (
+                    pixels > C.BLOCKS_SLOW_PX * self.v.sx * self.v.sy
+                    or self.v.last_sign_y < C.BLOCKS_SLOW_Y * self.v.sy):
+                self._blocks_close_t = time.time()  # close: no more blind running
             if which == "pyramid" and offset is None and self.pyramid_ahead(img):
                 return self.walk_into_pyramid()
             if which == "pyramid" and self.saw_pyramid_sign and self.no_layer_yet() \
@@ -468,10 +481,25 @@ class Bot:
             if offset is None and last_y is not None:
                 self.c.hold("w", self.step_sec(which, near=True))  # close sign just went out of view: keep going
                 continue
+            if offset is None and which == "blocks":
+                # sign not in view: is the pit itself off to one side? Then
+                # BLOCKS is right there: turn to it instead of walking past
+                side = self.pit_side(img)
+                if side:
+                    self.c.up("w")
+                    log.info("BLOCKS sign out of view but the pit is on our %s: turning to it", side)
+                    (self.c.turn_left if side == "left" else self.c.turn_right)(self.nav.turn90 / 3)
+                    self.c.sleep(0.15)
+                    missing = 0
+                    continue
             if offset is None and strafe:
                 # far signs flicker in and out of render distance: keep walking
-                # the way we're facing for a while before looking around again
-                if missing >= (C.SIGN_LOST_WALK_CHECKS if which == "blocks" else C.SIGN_GONE_CHECKS):
+                # the way we're facing for a while before looking around again.
+                # Close to BLOCKS (sign was big), don't: look around right away
+                lost_limit = C.SIGN_LOST_WALK_CHECKS if which == "blocks" else C.SIGN_GONE_CHECKS
+                if which == "blocks" and time.time() - getattr(self, "_blocks_close_t", 0) < 10:
+                    lost_limit = 1
+                if missing >= lost_limit:
                     # lost it: look around standing still
                     if not self.face_sign(which):
                         # nowhere in sight: don't keep walking blind into the desert
