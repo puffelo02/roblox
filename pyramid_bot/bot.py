@@ -510,18 +510,14 @@ class Bot:
                 self.c.turn_left(C.STEER_TAP_SEC)
             elif offset > C.STEER_TOLERANCE:
                 self.c.turn_right(C.STEER_TAP_SEC)
-            if self.v.pit_ahead(img):
+            if self.v.pit_ahead(img) and self.v.pickup_prompt_visible(img):
+                # rubble right in front AND the pick-up prompt: the pit's edge.
+                # (Rough ground without the prompt is just the gravel path or
+                # a stand: keep walking; real walls are caught by "blocked")
                 self.c.up("w")
-                if which == "blocks" and self.v.pickup_prompt_visible(img):
-                    # the rubble starts right in front of us and the pick-up
-                    # prompt shows: this is the edge. Stop, pick up from here
+                if which == "blocks":
                     log.info("pit edge right ahead: stopping at the edge")
                     return True
-                if which == "blocks":
-                    # looks rough but no prompt: not the pit (some wall or
-                    # obstacle). Get past it the proper way
-                    self.unstick()
-                    continue
                 # heading for the pyramid with the pit in the way: go around
                 log.info("BLOCKS pit right ahead: sidestepping around it")
                 self.c.hold("s", C.PIT_BACKOFF_SEC)
