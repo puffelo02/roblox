@@ -96,23 +96,32 @@ class Bot:
         return True
 
     def wait_for_new_pyramid(self):
-        """Pyramid finished: fill up at BLOCKS, then wait there for the reset
-        timer (about 3 minutes) until the progress bar shows a block count again."""
-        log.info("pyramid complete %s: refilling, then waiting for the new one", self.last_counter)
+        """Pyramid finished: fill up if needed, then wait for the reset timer
+        AWAY from the pit, at the pyramid. When the timer runs out the pit
+        refills with blocks: anyone standing in it gets buried (only a reset
+        gets you out). The new pyramid starts right where we wait."""
+        log.info("pyramid complete %s: refilling if needed, then waiting at the pyramid",
+                 self.last_counter)
         self.nav.camera_normal()
-        if self.go_to_blocks():
-            self.pick_up()
+        cap = self.capacity()
+        if cap is None or cap[0] < cap[1] * C.WAIT_REFILL_BELOW:
+            if self.go_to_blocks():
+                self.pick_up()
+        # get out of the pit area now, before the timer refills it
+        self.go_to_pyramid()
+        self.c.release_all()
         waited = 0
         while True:
-            if not self.v.pickup_prompt_visible(self.v.grab()) and waited % 60 == 30:
-                # not standing at BLOCKS (lost on the way?): try again
-                if self.go_to_blocks():
-                    self.pick_up()
             cur = self.v.read_counter(self.v.grab())
             if cur and cur[0] < cur[1]:
                 log.info("new pyramid: %s/%s, building again", *cur)
                 self.last_counter = cur
                 return
+            if self.v.pickup_prompt_visible(self.v.grab()):
+                # still at / in the pit: it will be buried when the timer ends
+                log.info("waiting next to the pit is dangerous: moving to the pyramid")
+                self.go_to_pyramid()
+                self.c.release_all()
             if waited % 60 == 0:
                 log.info("waiting for the pyramid to reset (%ds)", waited)
             self.c.sleep(5)

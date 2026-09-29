@@ -65,6 +65,7 @@ PIT_SIDE_COHERENCE = 0.3
 PIT_AHEAD_BOX = (860, 470, 1060, 540)  # normal view: the ground right in front of our feet (not 10 blocks off)
 PIT_EDGE_DENSITY = 0.15   # rubble: this share of strong edges...
 PIT_MAX_COHERENCE = 0.33  # ...pointing in all directions (stairs ~0.95)
+WAIT_REFILL_BELOW = 0.5   # pyramid done: refill first only if capacity is below this share
 PIT_BACKOFF_SEC = 0.25
 PIT_SIDESTEP_SEC = 0.6    # pit right ahead on the way to the pyramid: sidestep this long    # filled up: step back from the pit edge first
 PIT_CROSS_DEG = 70        # pyramid within this angle of the pit direction = beyond the pit
