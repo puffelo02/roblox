@@ -52,6 +52,11 @@ BLOCKS_NEAR_STEP_SEC = 0.07  # close to BLOCKS: ~2-block steps, so we stop at th
 CRUISE_TICK_SEC = 0.12    # running to a sign: look this often without letting go of W
 BLOCKS_SLOW_PX = 900      # BLOCKS sign this big...
 BLOCKS_SLOW_Y = 250       # ...or this high on screen = close to the pit: careful steps from here
+PATH_HSV = ((5, 60, 70), (13, 112, 138))  # the gravel path to BLOCKS (sand: S>120, V>160)
+PATH_BAND = (360, 560, 1560, 760)  # normal view: ground just ahead where the path is looked for
+PATH_MIN_SHARE = 0.06     # this share of the band must be path
+PATH_MAX_DEVIATION = 0.6  # follow the path only if it heads roughly toward the sign
+PATH_WEIGHT = 0.7
 PIT_AHEAD_BOX = (860, 470, 1060, 540)  # normal view: the ground right in front of our feet (not 10 blocks off)
 PIT_EDGE_DENSITY = 0.15   # rubble: this share of strong edges...
 PIT_MAX_COHERENCE = 0.33  # ...pointing in all directions (stairs ~0.95)

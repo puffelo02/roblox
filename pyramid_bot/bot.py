@@ -492,6 +492,12 @@ class Bot:
                     return False
                 continue
             searched = 0.0
+            if which == "blocks":
+                # the gravel path leads safely to the pick-up spot at the
+                # pit's edge: follow it when it goes the same way as the sign
+                path = self.v.path_offset(img)
+                if path is not None and abs(path - offset) < C.PATH_MAX_DEVIATION:
+                    offset = C.PATH_WEIGHT * path + (1 - C.PATH_WEIGHT) * offset
             if strafe and which == "pyramid" and abs(offset) > C.STEER_TOLERANCE:
                 # turn so the sign is dead centre, then walk (and climb) straight
                 # at it; sidestepping while walking only circles the pyramid

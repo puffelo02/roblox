@@ -113,6 +113,21 @@ class Vision:
         pair = self._read_pair(img, C.REGION_WALKSPEED)
         return pair[0] if pair and 0 < pair[0] <= pair[1] else None
 
+    def path_offset(self, img):
+        """Normal view: the grey-brown gravel path on the ground ahead (it
+        leads to the BLOCKS pick-up spot). Offset -1..+1 of its middle in
+        the band just ahead of us, or None if there's (almost) no path."""
+        x1, y1, x2, y2 = C.PATH_BAND
+        crop = img[int(y1 * self.sy):int(y2 * self.sy), int(x1 * self.sx):int(x2 * self.sx)]
+        hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+        m = cv2.inRange(hsv, *C.PATH_HSV)
+        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
+        if m.mean() / 255 < C.PATH_MIN_SHARE:
+            return None
+        cols = m.sum(0).astype(float)
+        x = float((cols * np.arange(len(cols))).sum() / cols.sum()) + x1 * self.sx
+        return (x - img.shape[1] / 2) / (img.shape[1] / 2)
+
     def pit_ahead(self, img):
         """Normal view: the BLOCKS pit's rubble right in front of us, a jumble
         of block edges pointing every which way (stairs and sand don't look
