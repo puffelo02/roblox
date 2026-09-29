@@ -246,18 +246,30 @@ class Bot:
             # the BLOCKS pit (under the blocks). Only a reset gets us out
             self.pit_reset()
             return
-        if n <= 2:
-            log.info("blocked: backing off and taking a running jump (%d)", n)
-            self.c.hold("s", C.UNSTICK_BACK_SEC * n)
-            self.c.down("w")
-            self.c.sleep(C.UNSTICK_RUNUP_SEC)
+        if n > C.UNSTICK_MAX_TRIES:
+            # backed off and went left and right (jumping) again and again,
+            # still stuck: reset the character (it empties the backpack; the
+            # main loop then refills)
+            log.warning("still stuck after %d tries of backing off and going around: resetting",
+                        C.UNSTICK_MAX_TRIES)
+            self.pit_reset()
+            return
+        # the way out of a wall: back away, then move sideways WHILE jumping
+        # (alternating left/right, wider each time), then forward again.
+        # Jumping or walking straight into it doesn't work
+        side = "a" if n % 2 else "d"
+        log.info("blocked: backing off, then %s while jumping (%d)",
+                 "left" if side == "a" else "right", n)
+        self.c.hold("s", C.UNSTICK_BACK_SEC * (1 + n // 2))
+        self.c.down(side)
+        for _ in range(1 + n // 2):
             self.c.hold("space", C.JUMP_HOLD_SEC)
-            self.c.sleep(0.4)
-            self.c.up("w")
-        else:
-            log.info("still blocked: going around it (%d)", n)
-            self.get_around(n)
-            self.c.hold("w", C.WALK_STEP_SEC * 2)
+            self.c.sleep(C.UNSTICK_SIDE_SEC)
+        self.c.up(side)
+        self.c.down("w")
+        self.c.hold("space", C.JUMP_HOLD_SEC)
+        self.c.sleep(0.3)
+        self.c.up("w")
 
     def get_around(self, attempt):
         """First try jumping over it (a sand block); then back off and sidestep
@@ -500,11 +512,16 @@ class Bot:
                 self.c.turn_right(C.STEER_TAP_SEC)
             if self.v.pit_ahead(img):
                 self.c.up("w")
-                if which == "blocks":
-                    # the rubble starts right in front of us: this is the edge.
-                    # Stop here (never one step further), pick up from here
+                if which == "blocks" and self.v.pickup_prompt_visible(img):
+                    # the rubble starts right in front of us and the pick-up
+                    # prompt shows: this is the edge. Stop, pick up from here
                     log.info("pit edge right ahead: stopping at the edge")
                     return True
+                if which == "blocks":
+                    # looks rough but no prompt: not the pit (some wall or
+                    # obstacle). Get past it the proper way
+                    self.unstick()
+                    continue
                 # heading for the pyramid with the pit in the way: go around
                 log.info("BLOCKS pit right ahead: sidestepping around it")
                 self.c.hold("s", C.PIT_BACKOFF_SEC)
@@ -575,6 +592,13 @@ class Bot:
 
     def go_to_blocks(self):
         log.info("-> BLOCKS (refilling)")
+        self._refill_tries = getattr(self, "_refill_tries", 0) + 1
+        if self._refill_tries > C.REFILL_MAX_TRIES:
+            # we keep "arriving" and getting nothing: stuck at the wrong spot
+            log.warning("%d refill attempts without getting blocks: resetting to start fresh",
+                        self._refill_tries - 1)
+            self._refill_tries = 0
+            self.pit_reset()
         self.was_reset = False
         self._pit_since = None
         for attempt in range(C.BLOCKS_TRIES):
@@ -706,6 +730,8 @@ class Bot:
                 if start_cap is None:
                     start_cap = cap[0]
                 if cap[0] > best:
+                    if start_cap is not None and cap[0] > start_cap:
+                        self._refill_tries = 0  # blocks are coming in: this spot works
                     best = cap[0]
                     last_rise = time.time()
                 elif time.time() - last_rise > (C.PICKUP_CREEP_WAIT_SEC if best <= start_cap
