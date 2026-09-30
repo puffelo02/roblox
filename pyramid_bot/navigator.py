@@ -159,10 +159,14 @@ class Navigator:
         layers (long walks out there drift further)."""
         # capped: on the 150-wide void pyramid it was 20 blocks in and the
         # corners never got placed (the safety margin still guards the edge)
-        return C.EDGE_INSET + min(C.EDGE_INSET_PER_BLOCK * side, C.EDGE_INSET_EXTRA_MAX)
+        big = self.base and self.base >= C.BIG_PYRAMID_BASE  # void: reach the sides/corners
+        cap = C.EDGE_INSET_EXTRA_MAX_BIG if big else C.EDGE_INSET_EXTRA_MAX
+        return C.EDGE_INSET + min(C.EDGE_INSET_PER_BLOCK * side, cap)
 
     def lap_inset(self, side, i):
-        return C.EDGE_LAP_INSETS[i] + min(C.EDGE_LAP_PER_BLOCK * side, C.EDGE_LAP_EXTRA_MAX)
+        big = self.base and self.base >= C.BIG_PYRAMID_BASE
+        cap = C.EDGE_LAP_EXTRA_MAX_BIG if big else C.EDGE_LAP_EXTRA_MAX
+        return C.EDGE_LAP_INSETS[i] + min(C.EDGE_LAP_PER_BLOCK * side, cap)
 
     def reset_camera(self):
         """Known normal view whatever state the camera was left in: tilt all the

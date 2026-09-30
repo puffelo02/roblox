@@ -285,6 +285,9 @@ BASEPLATE_MAX_SAT = 100   # grey stone: low colour saturation
 BASEPLATE_SHARE = 0.75    # this much of the ground around us is grey stone = on the baseplate
 EDGE_INSET_EXTRA_MAX = 8.0  # ...but never more than this extra (void 150 wide: 13 in, not 20)
 EDGE_LAP_EXTRA_MAX = 6.0
+BIG_PYRAMID_BASE = 140    # the void pyramid (150 base): laps go much closer to the sides
+EDGE_INSET_EXTRA_MAX_BIG = 2.0  # void: outer spiral lap 7 blocks in (was 13)
+EDGE_LAP_EXTRA_MAX_BIG = 1.0    # void: edge laps 3.5 / 5 blocks in
 EDGE_INSET_PER_BLOCK = 0.10  # outer lap: + this x layer width further from the edge (126 wide: +10)
 EDGE_LAP_PER_BLOCK = 0.12   # edge-cleanup laps likewise (126 wide: +8)
 JUMP_EVERY_MOVES = 3      # hop every this many moves while searching/centring (gets unstuck)
