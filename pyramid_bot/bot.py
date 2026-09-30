@@ -739,6 +739,7 @@ class Bot:
         last_log = 0
         shuffle = 0
         start_cap = None
+        last_read = time.time()
         self.c.down("e")
         try:
             while time.time() - start < C.PICKUP_TIMEOUT_SEC:
@@ -757,12 +758,24 @@ class Bot:
                         log.info("capacity unreadable after reaching %s, treating as full", best)
                         self.v.save(img, "full_unreadable")
                         return True
+                    unread = time.time() - last_read
+                    if unread > 10 and time.time() - last_log > 15:
+                        log.info("capacity unreadable for %ds (still holding E)", unread)
+                        last_log = time.time()
+                    if unread > C.PICKUP_BLIND_SEC:
+                        # can't read it at all, but we've held E at the pit long
+                        # enough to be full: go build instead of starting over
+                        log.info("capacity unreadable for %ds: assuming full, off to the pyramid", unread)
+                        self.just_filled = time.time()
+                        return True
                     continue
+                last_read = time.time()
                 if time.time() - last_log > 3:
                     log.info("capacity %s/%s", *cap)
                     last_log = time.time()
                 if cap[0] >= cap[1] * C.CAPACITY_FULL_RATIO:
                     log.info("capacity full %s/%s", *cap)
+                    self.just_filled = time.time()
                     # remember which way the pit is (we're facing it): the walk
                     # to the pyramid must not cut across it
                     self.c.turned = 0.0
@@ -1049,13 +1062,18 @@ class Bot:
                     if cap is not None:
                         break
                     self.c.sleep(0.2)
-                if getattr(self, "was_reset", False) or cap is None or cap[0] < C.EMPTY_BELOW:
+                if cap is None and not getattr(self, "was_reset", False) \
+                        and time.time() - getattr(self, "just_filled", 0) < 120:
+                    # just filled up; the number is only unreadable (it looks
+                    # different when full): don't go back to the pit for nothing
+                    log.info("capacity unreadable right after filling up: going to the pyramid")
+                elif getattr(self, "was_reset", False) or cap is None or cap[0] < C.EMPTY_BELOW:
                     # out of blocks (or can't tell): refill first
                     if not self.go_to_blocks():
                         continue
                     if not self.pick_up():
                         continue
-                else:
+                elif cap is not None:
                     log.info("still carrying %s/%s blocks: straight back to the pyramid", *cap)
                 if not self.go_to_pyramid():
                     continue

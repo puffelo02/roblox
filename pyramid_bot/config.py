@@ -175,6 +175,7 @@ CORNER_WALK_MAX_STEPS = 120  # steps toward the left/bottom edge before giving u
 BASE_OFFSET_BLOCKS = 0    # blocks between the strip's inner edge and the pyramid base
 
 # --- Loop ---
+PICKUP_BLIND_SEC = 150    # capacity unreadable this long while holding E at the pit: assume full
 PICKUP_CREEP_WAIT_SEC = 3  # nothing picked up this long = out of range: creep closer
 PICKUP_CREEP_SEC = 0.06   # one creep toward the pit (~1 block, never a stride)
 PICKUP_CREEP_MAX = 8
